@@ -1,0 +1,131 @@
+{
+  "_comment": "駅のバリアフリー情報シードデータ。verified:false は参考情報(要現地確認)。cleanliness は 1-5。口コミが追加されると平均に反映される。",
+  "stations": {
+    "東京": {
+      "verified": false,
+      "elevator": { "available": true, "note": "各ホームにエレベーターあり。丸の内側・八重洲側とも改札内外の移動可。構内が広いため乗換は時間に余裕を。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "改札内にベビー休憩室(授乳・おむつ替え)あり。多機能トイレ多数。", "note": "グランスタ周辺の設備は比較的新しくきれい。" },
+      "carRecommend": [],
+      "caution": "駅構内が非常に広い。京葉線ホームへは長距離移動(動く歩道あり・エレベーター経由可)。"
+    },
+    "新宿": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR各ホームにエレベーターあり。南口(甲州街道側)・ミライナタワー改札はエレベーター動線が比較的分かりやすい。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "JR改札内・ルミネ等駅ビルに多機能トイレとベビールームあり。", "note": "駅ビル(ルミネ・ニュウマン)のベビールームがきれいで使いやすい。" },
+      "carRecommend": [],
+      "caution": "人が非常に多い。ラッシュ時間帯のベビーカー移動は避けるのが無難。"
+    },
+    "池袋": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR・メトロ・東武・西武とも各ホームにエレベーターあり。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "駅直結の百貨店(西武・東武)ベビールームが充実。改札内は多機能トイレを利用。" },
+      "carRecommend": [],
+      "caution": "地下通路が混雑しやすい。"
+    },
+    "渋谷": {
+      "verified": false,
+      "elevator": { "available": true, "note": "再開発でエレベーター動線は改善されたが、路線間の上下移動が大きい(銀座線3F⇔JR⇔副都心線B5F)。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "渋谷スクランブルスクエア・ヒカリエ等直結ビルのベビールームがきれい。", "note": "駅ナカより直結商業施設の設備が快適。" },
+      "carRecommend": [],
+      "caution": "乗換の上下移動が特に大きい駅。エレベーターの待ち時間も見込むこと。"
+    },
+    "横浜": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR・東急・京急・相鉄・地下鉄とも各ホームにエレベーターあり。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "JR中央通路周辺・駅直結のCIAL/ジョイナス等にベビールームあり。" },
+      "carRecommend": []
+    },
+    "品川": {
+      "verified": false,
+      "elevator": { "available": true, "note": "各ホームにエレベーターあり。中央改札コンコースは広くベビーカーでも移動しやすい。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "改札内エキュート周辺に多機能トイレ・ベビー休憩室あり。" },
+      "carRecommend": []
+    },
+    "上野": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR各ホームにエレベーターあり。公園改札は上野公園(動物園)へ段差少なめ。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "改札内アトレ周辺に多機能トイレあり。上野公園側にもベビー対応トイレ。" },
+      "carRecommend": [],
+      "caution": "京成上野への乗換は一度地上経由。地下鉄への乗換は距離がある。"
+    },
+    "大宮": {
+      "verified": false,
+      "elevator": { "available": true, "note": "各ホームにエレベーターあり。新幹線乗換も改札内エレベーターで可。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "エキュート大宮・ルミネにベビールームあり。" },
+      "carRecommend": []
+    },
+    "北千住": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR・メトロ・東武とも各ホームにエレベーターあり。ただし千代田線⇔東武の乗換等は経路が分かりにくい。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "駅ビル(ルミネ・マルイ)にベビールームあり。" },
+      "carRecommend": []
+    },
+    "押上": {
+      "verified": false,
+      "elevator": { "available": true, "note": "各ホームにエレベーターあり。ソラマチ直結でベビーカー動線良好。" },
+      "babyToilet": { "available": true, "cleanliness": 5, "location": "東京ソラマチのベビールームが広くきれい。", "note": "スカイツリー観光対応で設備充実。" },
+      "carRecommend": []
+    },
+    "豊洲": {
+      "verified": false,
+      "elevator": { "available": true, "note": "有楽町線・ゆりかもめともエレベーターあり。ららぽーと直結。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "アーバンドック ららぽーと豊洲のベビールームが充実。" },
+      "carRecommend": []
+    },
+    "二子玉川": {
+      "verified": false,
+      "elevator": { "available": true, "note": "ホーム⇔改札⇔ライズ直結のエレベーターあり。ベビーカー利用者が多く動線が整っている。" },
+      "babyToilet": { "available": true, "cleanliness": 5, "location": "二子玉川ライズのベビールームが非常に充実。" },
+      "carRecommend": []
+    },
+    "武蔵小杉": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR・東急ともエレベーターあり。JR横須賀線ホーム⇔南武線・東急間は長距離移動。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "グランツリー武蔵小杉のベビールームが充実。" },
+      "caution": "横須賀線ホームへの乗換は距離が長い。時間に余裕を。",
+      "carRecommend": []
+    },
+    "吉祥寺": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR・京王井の頭線ともエレベーターあり。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "アトレ吉祥寺・コピス等にベビールームあり。" },
+      "carRecommend": []
+    },
+    "立川": {
+      "verified": false,
+      "elevator": { "available": true, "note": "各ホームにエレベーターあり。多摩モノレールへはペデストリアンデッキ経由(エレベーターあり)。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "エキュート立川・ルミネ・グランデュオにベビールームあり。" },
+      "carRecommend": []
+    },
+    "川崎": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR各ホームにエレベーターあり。京急川崎へは一度地上経由(平面移動中心)。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "アトレ川崎・ラゾーナ川崎のベビールームが充実。" },
+      "carRecommend": []
+    },
+    "船橋": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR・東武ともエレベーターあり。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "シャポー船橋・東武百貨店にベビールームあり。" },
+      "carRecommend": []
+    },
+    "海老名": {
+      "verified": false,
+      "elevator": { "available": true, "note": "小田急・相鉄・JRともエレベーターあり。駅間は平面的で移動しやすい。" },
+      "babyToilet": { "available": true, "cleanliness": 5, "location": "ららぽーと海老名・ビナウォークのベビールームが充実。" },
+      "carRecommend": []
+    },
+    "表参道": {
+      "verified": false,
+      "elevator": { "available": true, "note": "エレベーターはあるが出口によっては遠い。銀座線・半蔵門線⇔千代田線は同一ホーム乗換が可能な方向あり。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "改札内多機能トイレ・エチカ表参道。" },
+      "carRecommend": []
+    },
+    "銀座": {
+      "verified": false,
+      "elevator": { "available": true, "note": "出口のエレベーターが限られる。百貨店直結出口の営業時間内はデパートのエレベーター利用が楽。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "三越・松屋等百貨店のベビールームが充実(営業時間内)。" },
+      "carRecommend": []
+    }
+  }
+}
