@@ -38,7 +38,7 @@
   // ---------- データ読み込み ----------
   async function boot() {
     try {
-      const DATA_V = "3";
+      const DATA_V = "4";
       const [network, walks, fac] = await Promise.all([
         fetch(`data/network.json?v=${DATA_V}`).then((r) => r.json()),
         fetch(`data/walk_transfers.json?v=${DATA_V}`).then((r) => r.json()),

@@ -67,6 +67,15 @@ const StationMap = (() => {
       <text x="${bx + 12}" y="${y - th - 9}" class="sm-car-text">${esc(carText)}</text>`;
   }
 
+  // 階にあるトイレ(おむつ替え)マーカー
+  function toilet(i, label) {
+    const x = OX + W - 14, y = floorY(i) + DEPTH / 2 + 1;
+    return `
+      <circle cx="${x}" cy="${y - 4}" r="9" class="sm-toilet"/>
+      <text x="${x}" y="${y - .5}" text-anchor="middle" class="sm-toilet-icon">🚻</text>
+      ${label ? `<text x="${x + 12}" y="${y + 10}" text-anchor="end" class="sm-toilet-label">${esc(label)}</text>` : ""}`;
+  }
+
   // guide(transferGuide)1件をSVGにする
   function render(fac, guide) {
     const floors = fac?.floors;
@@ -75,6 +84,7 @@ const StationMap = (() => {
 
     const parts = [];
     floors.forEach((f, i) => parts.push(slab(i, f.label, f.id)));
+    floors.forEach((f, i) => { if (f.toilet) parts.push(toilet(i, f.toilet)); });
 
     let order = 0, x = OX + SKEW + 46, carDrawn = false, pendingCar = null;
     for (const st of guide?.steps || []) {

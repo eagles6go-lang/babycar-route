@@ -1,26 +1,107 @@
 {
-  "_comment": "駅のバリアフリー情報シードデータ。verified:false は参考情報(要現地確認)。cleanliness は 1-5。口コミが追加されると平均に反映される。",
+  "_comment": "駅のバリアフリー情報シードデータ。verified:false は参考情報(要現地確認)。cleanliness は 1-5。floors は上の階から順。floors[].toilet はおむつ替え対応トイレの場所。transferGuides は号車→EV階移動→徒歩のステップ。",
   "stations": {
     "東京": {
       "verified": false,
       "elevator": { "available": true, "note": "各ホームにエレベーターあり。丸の内側・八重洲側とも改札内外の移動可。構内が広いため乗換は時間に余裕を。" },
       "babyToilet": { "available": true, "cleanliness": 4, "location": "改札内にベビー休憩室(授乳・おむつ替え)あり。多機能トイレ多数。", "note": "グランスタ周辺の設備は比較的新しくきれい。" },
       "carRecommend": [],
-      "caution": "駅構内が非常に広い。京葉線ホームへは長距離移動(動く歩道あり・エレベーター経由可)。"
+      "caution": "駅構内が非常に広い。京葉線ホームへは長距離移動(動く歩道あり・エレベーター経由可)。",
+      "floors": [
+        { "id": "1F", "label": "在来線ホーム・丸の内/八重洲改札" },
+        { "id": "B1F", "label": "地下コンコース・グランスタ", "toilet": "ベビー休憩室(グランスタ付近)" },
+        { "id": "B4F", "label": "京葉線ホーム" },
+        { "id": "B5F", "label": "総武・横須賀線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "在来線(山手線・中央線等)",
+          "to": "京葉線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "地下コンコースを京葉線方面へ長距離移動(動く歩道あり・15分目安)" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B4F", "name": "京葉線EV" }
+          ]
+        },
+        {
+          "from": "在来線(山手線・中央線等)",
+          "to": "総武・横須賀線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "丸の内地下コンコースを総武線方面へ" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B5F", "name": "総武線EV" }
+          ]
+        }
+      ]
     },
     "新宿": {
       "verified": false,
       "elevator": { "available": true, "note": "JR各ホームにエレベーターあり。南口(甲州街道側)・ミライナタワー改札はエレベーター動線が比較的分かりやすい。" },
       "babyToilet": { "available": true, "cleanliness": 3, "location": "JR改札内・ルミネ等駅ビルに多機能トイレとベビールームあり。", "note": "駅ビル(ルミネ・ニュウマン)のベビールームがきれいで使いやすい。" },
       "carRecommend": [],
-      "caution": "人が非常に多い。ラッシュ時間帯のベビーカー移動は避けるのが無難。"
+      "caution": "人が非常に多い。ラッシュ時間帯のベビーカー移動は避けるのが無難。大江戸線は非常に深い。",
+      "floors": [
+        { "id": "2F", "label": "南口改札・甲州街道" },
+        { "id": "1F", "label": "JRホーム" },
+        { "id": "B1F", "label": "東西通路・西口/東口改札", "toilet": "改札内多機能トイレ・駅ビルベビールーム" },
+        { "id": "B2F", "label": "丸ノ内線ホーム" },
+        { "id": "B5F", "label": "都営新宿線・京王新線ホーム" },
+        { "id": "B7F", "label": "大江戸線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR各線",
+          "to": "丸ノ内線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "東口方面へ。丸ノ内線改札(B1)まで地下通路" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B2F", "name": "丸ノ内線EV" }
+          ]
+        },
+        {
+          "from": "JR各線",
+          "to": "大江戸線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "都庁方面(西口)へ。大江戸線は非常に深いのでEVを乗り継ぐ" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B7F", "name": "大江戸線EV(乗継)" }
+          ]
+        }
+      ]
     },
     "池袋": {
       "verified": false,
       "elevator": { "available": true, "note": "JR・メトロ・東武・西武とも各ホームにエレベーターあり。" },
       "babyToilet": { "available": true, "cleanliness": 3, "location": "駅直結の百貨店(西武・東武)ベビールームが充実。改札内は多機能トイレを利用。" },
       "carRecommend": [],
-      "caution": "地下通路が混雑しやすい。"
+      "caution": "地下通路が混雑しやすい。",
+      "floors": [
+        { "id": "1F", "label": "JRホーム・東武/西武コンコース" },
+        { "id": "B1F", "label": "中央通路・各改札", "toilet": "改札内多機能トイレ・百貨店ベビールーム" },
+        { "id": "B2F", "label": "丸ノ内線ホーム" },
+        { "id": "B3F", "label": "有楽町線ホーム" },
+        { "id": "B4F", "label": "副都心線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR各線",
+          "to": "丸ノ内線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "中央通路を東口方面へ" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B2F", "name": "丸ノ内線EV" }
+          ]
+        },
+        {
+          "from": "JR各線",
+          "to": "副都心線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "西口方面の副都心線改札へ" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B4F", "name": "副都心線EV" }
+          ]
+        }
+      ]
     },
     "渋谷": {
       "verified": false,
@@ -34,7 +115,7 @@
         { "id": "3F", "label": "銀座線ホーム" },
         { "id": "2F", "label": "JRホーム・連絡通路" },
         { "id": "1F", "label": "地上・ハチ公口" },
-        { "id": "B1F", "label": "地下改札・通路" },
+        { "id": "B1F", "label": "地下改札・通路", "toilet": "スクランブルスクエア/ヒカリエのベビールーム" },
         { "id": "B3F", "label": "半蔵門線・田園都市線ホーム/地下コンコース" },
         { "id": "B5F", "label": "東横線・副都心線ホーム" }
       ],
@@ -65,32 +146,139 @@
       "verified": false,
       "elevator": { "available": true, "note": "JR・東急・京急・相鉄・地下鉄とも各ホームにエレベーターあり。" },
       "babyToilet": { "available": true, "cleanliness": 4, "location": "JR中央通路周辺・駅直結のCIAL/ジョイナス等にベビールームあり。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "相鉄改札・きた/みなみ通路上部" },
+        { "id": "1F", "label": "JR・京急ホーム" },
+        { "id": "B1F", "label": "中央通路・各改札", "toilet": "中央通路周辺・CIAL/ジョイナスのベビールーム" },
+        { "id": "B3F", "label": "東急/みなとみらい線改札・ブルーライン" },
+        { "id": "B5F", "label": "東横線・みなとみらい線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR各線",
+          "to": "東横線・みなとみらい線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "中央通路を南改札方面へ" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B3F", "name": "東急連絡EV" },
+            { "type": "elevator", "fromFloor": "B3F", "toFloor": "B5F", "name": "ホームEV" }
+          ]
+        },
+        {
+          "from": "JR各線",
+          "to": "相鉄線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "中央通路を相鉄改札方面へ" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "2F", "name": "相鉄連絡EV" }
+          ]
+        }
+      ]
     },
     "品川": {
       "verified": false,
       "elevator": { "available": true, "note": "各ホームにエレベーターあり。中央改札コンコースは広くベビーカーでも移動しやすい。" },
       "babyToilet": { "available": true, "cleanliness": 4, "location": "改札内エキュート周辺に多機能トイレ・ベビー休憩室あり。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "中央改札コンコース・エキュート", "toilet": "エキュート周辺 多機能トイレ・ベビー休憩室" },
+        { "id": "1F", "label": "JR・新幹線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR各線",
+          "to": "京急線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "ホームEV" },
+            { "type": "walk", "note": "中央改札から京急連絡改札へ(平面移動)" },
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "京急ホームEV" }
+          ]
+        }
+      ]
     },
     "上野": {
       "verified": false,
       "elevator": { "available": true, "note": "JR各ホームにエレベーターあり。公園改札は上野公園(動物園)へ段差少なめ。" },
       "babyToilet": { "available": true, "cleanliness": 3, "location": "改札内アトレ周辺に多機能トイレあり。上野公園側にもベビー対応トイレ。" },
       "carRecommend": [],
-      "caution": "京成上野への乗換は一度地上経由。地下鉄への乗換は距離がある。"
+      "caution": "京成上野への乗換は一度地上経由。地下鉄への乗換は距離がある。",
+      "floors": [
+        { "id": "2F", "label": "高架ホーム・公園改札" },
+        { "id": "1F", "label": "地上ホーム・中央改札", "toilet": "改札内アトレ周辺 多機能トイレ" },
+        { "id": "B2F", "label": "銀座線ホーム" },
+        { "id": "B3F", "label": "日比谷線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR各線",
+          "to": "銀座線・日比谷線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "ホームEV" },
+            { "type": "walk", "note": "中央改札を出て地下鉄連絡口へ" },
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B2F", "name": "メトロ連絡EV" }
+          ]
+        },
+        {
+          "from": "JR各線",
+          "to": "京成上野",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "1F", "name": "不忍改札方面EV" },
+            { "type": "walk", "note": "不忍口から地上を京成上野駅へ(徒歩約9分・公園沿い)" }
+          ]
+        }
+      ]
     },
     "大宮": {
       "verified": false,
       "elevator": { "available": true, "note": "各ホームにエレベーターあり。新幹線乗換も改札内エレベーターで可。" },
       "babyToilet": { "available": true, "cleanliness": 4, "location": "エキュート大宮・ルミネにベビールームあり。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "3F", "label": "新幹線ホーム" },
+        { "id": "2F", "label": "コンコース・改札・東武連絡", "toilet": "エキュート大宮/ルミネ ベビールーム" },
+        { "id": "1F", "label": "在来線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "在来線各線",
+          "to": "東武アーバンパークライン",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "ホームEV" },
+            { "type": "walk", "note": "コンコースを東武改札方面へ(平面移動)" },
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "東武ホームEV" }
+          ]
+        }
+      ]
     },
     "北千住": {
       "verified": false,
       "elevator": { "available": true, "note": "JR・メトロ・東武とも各ホームにエレベーターあり。ただし千代田線⇔東武の乗換等は経路が分かりにくい。" },
       "babyToilet": { "available": true, "cleanliness": 3, "location": "駅ビル(ルミネ・マルイ)にベビールームあり。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "3F", "label": "日比谷線ホーム・東武上層ホーム" },
+        { "id": "1F", "label": "JR・東武ホーム・コンコース", "toilet": "ルミネ/マルイ ベビールーム" },
+        { "id": "B2F", "label": "千代田線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR常磐線",
+          "to": "千代田線",
+          "steps": [
+            { "type": "walk", "note": "コンコース(1F)の千代田線連絡口へ" },
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B2F", "name": "千代田線EV" }
+          ]
+        },
+        {
+          "from": "東武スカイツリーライン",
+          "to": "日比谷線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "3F", "name": "東武ホームEV" },
+            { "type": "walk", "note": "3Fで日比谷線ホームへ(直通列車なら乗換不要)" }
+          ]
+        }
+      ]
     },
     "押上": {
       "verified": false,
@@ -98,7 +286,7 @@
       "babyToilet": { "available": true, "cleanliness": 5, "location": "東京ソラマチのベビールームが広くきれい。", "note": "スカイツリー観光対応で設備充実。" },
       "carRecommend": [],
       "floors": [
-        { "id": "1F", "label": "地上・ソラマチ" },
+        { "id": "1F", "label": "地上・ソラマチ", "toilet": "東京ソラマチ ベビールーム" },
         { "id": "B1F", "label": "改札・コンコース" },
         { "id": "B2F", "label": "半蔵門線・東武線ホーム" },
         { "id": "B3F", "label": "浅草線・京成線ホーム" }
@@ -112,6 +300,15 @@
             { "type": "walk", "note": "改札を出てソラマチ方面へ" },
             { "type": "elevator", "fromFloor": "B1F", "toFloor": "1F", "name": "ソラマチ連絡EV" }
           ]
+        },
+        {
+          "from": "半蔵門線",
+          "to": "浅草線・京成線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "B2F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "改札内コンコースで浅草線方面へ" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B3F", "name": "浅草線EV" }
+          ]
         }
       ]
     },
@@ -119,7 +316,24 @@
       "verified": false,
       "elevator": { "available": true, "note": "有楽町線・ゆりかもめともエレベーターあり。ららぽーと直結。" },
       "babyToilet": { "available": true, "cleanliness": 4, "location": "アーバンドック ららぽーと豊洲のベビールームが充実。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "ゆりかもめホーム" },
+        { "id": "1F", "label": "地上・ららぽーと方面", "toilet": "ららぽーと豊洲 ベビールーム" },
+        { "id": "B1F", "label": "有楽町線改札" },
+        { "id": "B2F", "label": "有楽町線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "有楽町線",
+          "to": "ゆりかもめ",
+          "steps": [
+            { "type": "elevator", "fromFloor": "B2F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "1F", "name": "出口EV" },
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "ゆりかもめEV" }
+          ]
+        }
+      ]
     },
     "二子玉川": {
       "verified": false,
@@ -128,7 +342,7 @@
       "carRecommend": [],
       "floors": [
         { "id": "3F", "label": "田園都市線・大井町線ホーム" },
-        { "id": "2F", "label": "改札・ライズ連絡デッキ" },
+        { "id": "2F", "label": "改札・ライズ連絡デッキ", "toilet": "二子玉川ライズ ベビールーム" },
         { "id": "1F", "label": "地上" }
       ],
       "transferGuides": [
@@ -147,37 +361,143 @@
       "elevator": { "available": true, "note": "JR・東急ともエレベーターあり。JR横須賀線ホーム⇔南武線・東急間は長距離移動。" },
       "babyToilet": { "available": true, "cleanliness": 4, "location": "グランツリー武蔵小杉のベビールームが充実。" },
       "caution": "横須賀線ホームへの乗換は距離が長い。時間に余裕を。",
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "東急ホーム(高架)" },
+        { "id": "1F", "label": "改札・南武線ホーム・連絡通路", "toilet": "グランツリー武蔵小杉 ベビールーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "東急東横線・目黒線",
+          "to": "JR南武線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "東急ホームEV" },
+            { "type": "walk", "note": "東急改札からJR改札へ(平面移動)" }
+          ]
+        },
+        {
+          "from": "東急・南武線",
+          "to": "JR横須賀線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "東急ホームEV" },
+            { "type": "walk", "note": "横須賀線ホームまで連絡通路を長距離移動(10分前後・動く歩道あり)" }
+          ]
+        }
+      ]
     },
     "吉祥寺": {
       "verified": false,
       "elevator": { "available": true, "note": "JR・京王井の頭線ともエレベーターあり。" },
       "babyToilet": { "available": true, "cleanliness": 4, "location": "アトレ吉祥寺・コピス等にベビールームあり。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "JR・井の頭線ホーム(高架)" },
+        { "id": "1F", "label": "改札・アトレ・地上", "toilet": "アトレ吉祥寺 ベビールーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR中央線",
+          "to": "京王井の頭線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "JRホームEV" },
+            { "type": "walk", "note": "中央改札から井の頭線改札へ(アトレ内平面移動)" },
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "井の頭線EV" }
+          ]
+        }
+      ]
     },
     "立川": {
       "verified": false,
       "elevator": { "available": true, "note": "各ホームにエレベーターあり。多摩モノレールへはペデストリアンデッキ経由(エレベーターあり)。" },
       "babyToilet": { "available": true, "cleanliness": 4, "location": "エキュート立川・ルミネ・グランデュオにベビールームあり。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "3F", "label": "多摩モノレール(立川北/南)ホーム" },
+        { "id": "2F", "label": "改札コンコース・ペデストリアンデッキ", "toilet": "エキュート立川/ルミネ ベビールーム" },
+        { "id": "1F", "label": "JRホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR各線",
+          "to": "多摩モノレール",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "ホームEV" },
+            { "type": "walk", "note": "改札を出てデッキを立川北駅方面へ(屋外・約5分)" },
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "3F", "name": "モノレールEV" }
+          ]
+        }
+      ]
     },
     "川崎": {
       "verified": false,
       "elevator": { "available": true, "note": "JR各ホームにエレベーターあり。京急川崎へは一度地上経由(平面移動中心)。" },
       "babyToilet": { "available": true, "cleanliness": 4, "location": "アトレ川崎・ラゾーナ川崎のベビールームが充実。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "自由通路・中央改札", "toilet": "アトレ川崎/ラゾーナ ベビールーム" },
+        { "id": "1F", "label": "JRホーム・地上" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR各線",
+          "to": "京急川崎",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "ホームEV" },
+            { "type": "walk", "note": "中央改札から東口方面へ、地上に降りて京急川崎駅まで徒歩(約12分・ベビーカー想定)" },
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "東口EV" }
+          ]
+        }
+      ]
     },
     "船橋": {
       "verified": false,
       "elevator": { "available": true, "note": "JR・東武ともエレベーターあり。" },
       "babyToilet": { "available": true, "cleanliness": 3, "location": "シャポー船橋・東武百貨店にベビールームあり。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "JRホーム(高架)・東武連絡" },
+        { "id": "1F", "label": "改札・シャポー・地上", "toilet": "シャポー船橋/東武百貨店 ベビールーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR総武線",
+          "to": "京成船橋",
+          "steps": [
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "ホームEV" },
+            { "type": "walk", "note": "南口から連絡デッキ/地上経由で京成船橋駅へ(約7分)" }
+          ]
+        }
+      ]
     },
     "海老名": {
       "verified": false,
       "elevator": { "available": true, "note": "小田急・相鉄・JRともエレベーターあり。駅間は平面的で移動しやすい。" },
       "babyToilet": { "available": true, "cleanliness": 5, "location": "ららぽーと海老名・ビナウォークのベビールームが充実。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "橋上改札・自由通路", "toilet": "ららぽーと海老名/ビナウォーク ベビールーム" },
+        { "id": "1F", "label": "小田急・相鉄・JRホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "小田急線",
+          "to": "相鉄線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "小田急ホームEV" },
+            { "type": "walk", "note": "改札を出て相鉄改札へ(平面・すぐ隣)" },
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "相鉄ホームEV" }
+          ]
+        },
+        {
+          "from": "小田急・相鉄",
+          "to": "JR相模線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "ホームEV" },
+            { "type": "walk", "note": "自由通路をJR口方面へ(ららぽーと側・約5分)" },
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "JRホームEV" }
+          ]
+        }
+      ]
     },
     "表参道": {
       "verified": false,
@@ -186,7 +506,7 @@
       "carRecommend": [],
       "floors": [
         { "id": "1F", "label": "地上" },
-        { "id": "B1F", "label": "改札・コンコース" },
+        { "id": "B1F", "label": "改札・コンコース", "toilet": "改札内多機能トイレ(エチカ付近)" },
         { "id": "B2F", "label": "千代田線ホーム" },
         { "id": "B3F", "label": "銀座線・半蔵門線ホーム" }
       ],
@@ -212,7 +532,256 @@
       "verified": false,
       "elevator": { "available": true, "note": "出口のエレベーターが限られる。百貨店直結出口の営業時間内はデパートのエレベーター利用が楽。" },
       "babyToilet": { "available": true, "cleanliness": 4, "location": "三越・松屋等百貨店のベビールームが充実(営業時間内)。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "1F", "label": "地上・百貨店" },
+        { "id": "B1F", "label": "改札・コンコース", "toilet": "百貨店ベビールーム(営業時間内)" },
+        { "id": "B2F", "label": "銀座線・丸ノ内線ホーム" },
+        { "id": "B3F", "label": "日比谷線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "銀座線・丸ノ内線",
+          "to": "日比谷線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "B2F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "改札内コンコースで日比谷線方面へ" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B3F", "name": "日比谷線EV" }
+          ]
+        }
+      ]
+    },
+    "大手町": {
+      "verified": false,
+      "elevator": { "available": true, "note": "各線ホームにエレベーターあり。ただし構内が非常に広く、路線間の移動距離が長い。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "改札内多機能トイレ(各線改札付近)・直結オフィスビルにも設備あり。" },
+      "carRecommend": [],
+      "caution": "5路線が乗り入れる巨大地下駅。乗換は通路移動が長いので時間に余裕を。",
+      "floors": [
+        { "id": "1F", "label": "地上・オフィスビル直結" },
+        { "id": "B1F", "label": "コンコース・各線改札", "toilet": "各線改札付近 多機能トイレ" },
+        { "id": "B2F", "label": "丸ノ内線・東西線・三田線ホーム" },
+        { "id": "B3F", "label": "千代田線ホーム" },
+        { "id": "B4F", "label": "半蔵門線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "東西線・丸ノ内線",
+          "to": "半蔵門線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "B2F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "コンコースを半蔵門線方面へ(距離あり)" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B4F", "name": "半蔵門線EV" }
+          ]
+        },
+        {
+          "from": "丸ノ内線・東西線",
+          "to": "千代田線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "B2F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "コンコースを千代田線方面へ" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B3F", "name": "千代田線EV" }
+          ]
+        }
+      ]
+    },
+    "秋葉原": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR・TX・日比谷線ともエレベーターあり。TXは深いのでEV乗継。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "改札内多機能トイレ・アトレ秋葉原にベビー設備あり。" },
+      "carRecommend": [],
+      "floors": [
+        { "id": "3F", "label": "総武線ホーム(上層高架)" },
+        { "id": "2F", "label": "山手・京浜東北線ホーム(高架)" },
+        { "id": "1F", "label": "改札・地上", "toilet": "改札内多機能トイレ・アトレ" },
+        { "id": "B2F", "label": "日比谷線ホーム" },
+        { "id": "B4F", "label": "つくばエクスプレスホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR各線",
+          "to": "つくばエクスプレス",
+          "steps": [
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "JRホームEV" },
+            { "type": "walk", "note": "中央改札からTX入口(A1方面)へ" },
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B4F", "name": "TX EV(乗継)" }
+          ]
+        },
+        {
+          "from": "JR各線",
+          "to": "日比谷線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "JRホームEV" },
+            { "type": "walk", "note": "昭和通り口方面へ" },
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B2F", "name": "日比谷線EV" }
+          ]
+        }
+      ]
+    },
+    "飯田橋": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR・メトロ各線・大江戸線ともエレベーターあり。大江戸線は深い。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "改札内多機能トイレ(メトロ・都営)。" },
+      "carRecommend": [],
+      "caution": "路線間の通路移動が長め。大江戸線は非常に深い。",
+      "floors": [
+        { "id": "1F", "label": "JRホーム・西口/東口", "toilet": "改札内多機能トイレ" },
+        { "id": "B1F", "label": "メトロコンコース" },
+        { "id": "B2F", "label": "有楽町線・南北線・東西線ホーム" },
+        { "id": "B6F", "label": "大江戸線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR中央・総武線",
+          "to": "有楽町線・南北線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B1F", "name": "連絡EV" },
+            { "type": "walk", "note": "メトロコンコースを各線改札へ" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B2F", "name": "ホームEV" }
+          ]
+        },
+        {
+          "from": "JR・メトロ各線",
+          "to": "大江戸線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B6F", "name": "大江戸線EV(乗継)" },
+            { "type": "walk", "note": "非常に深いため時間に余裕を(5分以上見込む)" }
+          ]
+        }
+      ]
+    },
+    "中目黒": {
+      "verified": false,
+      "elevator": { "available": true, "note": "高架ホーム⇔改札のエレベーターあり。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "改札付近多機能トイレ・アトレ中目黒。" },
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "東横線・日比谷線ホーム(高架)" },
+        { "id": "1F", "label": "改札・地上", "toilet": "改札付近 多機能トイレ" }
+      ],
+      "transferGuides": [
+        {
+          "from": "東横線",
+          "to": "日比谷線",
+          "steps": [
+            { "type": "walk", "note": "同一ホーム/隣ホームで平面乗換(直通列車なら乗換不要)" }
+          ]
+        }
+      ]
+    },
+    "錦糸町": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR・半蔵門線ともエレベーターあり。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "テルミナ・パルコにベビールームあり。" },
+      "carRecommend": [],
+      "floors": [
+        { "id": "1F", "label": "JRホーム・改札・地上", "toilet": "テルミナ/パルコ ベビールーム" },
+        { "id": "B1F", "label": "地下コンコース" },
+        { "id": "B3F", "label": "半蔵門線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR総武線",
+          "to": "半蔵門線",
+          "steps": [
+            { "type": "walk", "note": "南口方面から半蔵門線入口へ" },
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "B1F", "name": "出入口EV" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "B3F", "name": "ホームEV" }
+          ]
+        }
+      ]
+    },
+    "日暮里": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR・京成・舎人ライナーともエレベーターあり。京成スカイライナー乗換も改札内で完結。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "改札内多機能トイレ・エキュート日暮里。" },
+      "carRecommend": [],
+      "floors": [
+        { "id": "3F", "label": "日暮里・舎人ライナーホーム" },
+        { "id": "2F", "label": "跨線橋コンコース・改札", "toilet": "改札内多機能トイレ" },
+        { "id": "1F", "label": "JR・京成ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR各線",
+          "to": "京成線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "JRホームEV" },
+            { "type": "walk", "note": "コンコースの京成連絡改札へ(平面移動)" },
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "京成ホームEV" }
+          ]
+        },
+        {
+          "from": "JR各線",
+          "to": "舎人ライナー",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "JRホームEV" },
+            { "type": "walk", "note": "東口方面の舎人ライナー改札へ" },
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "3F", "name": "舎人ライナーEV" }
+          ]
+        }
+      ]
+    },
+    "溝の口": {
+      "verified": false,
+      "elevator": { "available": true, "note": "東急・JR(武蔵溝ノ口)ともエレベーターあり。駅間はデッキで連絡。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "ノクティ(マルイファミリー溝口)にベビールームあり。" },
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "東急ホーム(高架)・連絡デッキ", "toilet": "ノクティ ベビールーム" },
+        { "id": "1F", "label": "改札・地上・JR武蔵溝ノ口" }
+      ],
+      "transferGuides": [
+        {
+          "from": "東急田園都市線・大井町線",
+          "to": "JR南武線(武蔵溝ノ口)",
+          "steps": [
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "東急ホームEV" },
+            { "type": "walk", "note": "改札を出てデッキ/地上経由でJR武蔵溝ノ口駅へ(約5分)" }
+          ]
+        }
+      ]
+    },
+    "町田": {
+      "verified": false,
+      "elevator": { "available": true, "note": "小田急・JRともエレベーターあり。駅間はペデストリアンデッキで連絡。" },
+      "babyToilet": { "available": true, "cleanliness": 4, "location": "小田急百貨店・ルミネ・東急ツインズにベビールームあり。" },
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "JR町田ホーム・デッキ・改札", "toilet": "ルミネ/小田急百貨店 ベビールーム" },
+        { "id": "1F", "label": "小田急ホーム・地上" }
+      ],
+      "transferGuides": [
+        {
+          "from": "小田急線",
+          "to": "JR横浜線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "小田急ホームEV" },
+            { "type": "walk", "note": "西口からペデストリアンデッキをJR町田駅へ(約7分)" }
+          ]
+        }
+      ]
+    },
+    "西船橋": {
+      "verified": false,
+      "elevator": { "available": true, "note": "JR・東西線・東葉高速とも同一構内でエレベーターあり。" },
+      "babyToilet": { "available": true, "cleanliness": 3, "location": "改札内多機能トイレ。" },
+      "carRecommend": [],
+      "floors": [
+        { "id": "2F", "label": "橋上コンコース・改札", "toilet": "改札内多機能トイレ" },
+        { "id": "1F", "label": "JR・東西線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "JR総武線・武蔵野線",
+          "to": "東西線・東葉高速線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "1F", "toFloor": "2F", "name": "ホームEV" },
+            { "type": "walk", "note": "同一改札内でコンコースを移動" },
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "1F", "name": "東西線ホームEV" }
+          ]
+        }
+      ]
     }
   }
 }
