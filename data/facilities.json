@@ -26,8 +26,40 @@
       "verified": false,
       "elevator": { "available": true, "note": "再開発でエレベーター動線は改善されたが、路線間の上下移動が大きい(銀座線3F⇔JR⇔副都心線B5F)。" },
       "babyToilet": { "available": true, "cleanliness": 4, "location": "渋谷スクランブルスクエア・ヒカリエ等直結ビルのベビールームがきれい。", "note": "駅ナカより直結商業施設の設備が快適。" },
-      "carRecommend": [],
-      "caution": "乗換の上下移動が特に大きい駅。エレベーターの待ち時間も見込むこと。"
+      "carRecommend": [
+        { "line": "東京メトロ副都心線", "direction": "各方面", "car": "ホーム中央付近の車両", "reason": "ホーム中央のエレベーターに近い(要確認)" }
+      ],
+      "caution": "乗換の上下移動が特に大きい駅。エレベーターの待ち時間も見込むこと。",
+      "floors": [
+        { "id": "3F", "label": "銀座線ホーム" },
+        { "id": "2F", "label": "JRホーム・連絡通路" },
+        { "id": "1F", "label": "地上・ハチ公口" },
+        { "id": "B1F", "label": "地下改札・通路" },
+        { "id": "B3F", "label": "半蔵門線・田園都市線ホーム/地下コンコース" },
+        { "id": "B5F", "label": "東横線・副都心線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "東急東横線・副都心線",
+          "to": "JR各線",
+          "steps": [
+            { "type": "car", "line": "東急東横線/東京メトロ副都心線", "direction": "渋谷方面", "car": "ホーム中央付近", "reason": "エレベーターがホーム中央付近(要確認)" },
+            { "type": "elevator", "fromFloor": "B5F", "toFloor": "B3F", "name": "ホームEV" },
+            { "type": "elevator", "fromFloor": "B3F", "toFloor": "B1F", "name": "コンコースEV" },
+            { "type": "walk", "note": "地下通路をJR方面へ(スクランブルスクエア側EVが分かりやすい)" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "2F", "name": "JR連絡EV" }
+          ]
+        },
+        {
+          "from": "JR各線",
+          "to": "銀座線",
+          "steps": [
+            { "type": "walk", "note": "JRホーム(2F)からスクランブルスクエア方面へ" },
+            { "type": "elevator", "fromFloor": "2F", "toFloor": "3F", "name": "銀座線連絡EV" },
+            { "type": "walk", "note": "銀座線改札(3F・スクランブルスクエア直結)へ" }
+          ]
+        }
+      ]
     },
     "横浜": {
       "verified": false,
@@ -64,7 +96,24 @@
       "verified": false,
       "elevator": { "available": true, "note": "各ホームにエレベーターあり。ソラマチ直結でベビーカー動線良好。" },
       "babyToilet": { "available": true, "cleanliness": 5, "location": "東京ソラマチのベビールームが広くきれい。", "note": "スカイツリー観光対応で設備充実。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "1F", "label": "地上・ソラマチ" },
+        { "id": "B1F", "label": "改札・コンコース" },
+        { "id": "B2F", "label": "半蔵門線・東武線ホーム" },
+        { "id": "B3F", "label": "浅草線・京成線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "半蔵門線・東武線",
+          "to": "地上(ソラマチ・スカイツリー)",
+          "steps": [
+            { "type": "elevator", "fromFloor": "B2F", "toFloor": "B1F", "name": "ホームEV" },
+            { "type": "walk", "note": "改札を出てソラマチ方面へ" },
+            { "type": "elevator", "fromFloor": "B1F", "toFloor": "1F", "name": "ソラマチ連絡EV" }
+          ]
+        }
+      ]
     },
     "豊洲": {
       "verified": false,
@@ -76,7 +125,22 @@
       "verified": false,
       "elevator": { "available": true, "note": "ホーム⇔改札⇔ライズ直結のエレベーターあり。ベビーカー利用者が多く動線が整っている。" },
       "babyToilet": { "available": true, "cleanliness": 5, "location": "二子玉川ライズのベビールームが非常に充実。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "3F", "label": "田園都市線・大井町線ホーム" },
+        { "id": "2F", "label": "改札・ライズ連絡デッキ" },
+        { "id": "1F", "label": "地上" }
+      ],
+      "transferGuides": [
+        {
+          "from": "田園都市線・大井町線",
+          "to": "改札・ライズ方面",
+          "steps": [
+            { "type": "elevator", "fromFloor": "3F", "toFloor": "2F", "name": "ホームEV" },
+            { "type": "walk", "note": "改札を出てそのままライズ連絡デッキへ(平面移動)" }
+          ]
+        }
+      ]
     },
     "武蔵小杉": {
       "verified": false,
@@ -117,9 +181,32 @@
     },
     "表参道": {
       "verified": false,
-      "elevator": { "available": true, "note": "エレベーターはあるが出口によっては遠い。銀座線・半蔵門線⇔千代田線は同一ホーム乗換が可能な方向あり。" },
+      "elevator": { "available": true, "note": "エレベーターはあるが出口によっては遠い。銀座線⇔半蔵門線は同一ホームで平面乗換が可能。" },
       "babyToilet": { "available": true, "cleanliness": 3, "location": "改札内多機能トイレ・エチカ表参道。" },
-      "carRecommend": []
+      "carRecommend": [],
+      "floors": [
+        { "id": "1F", "label": "地上" },
+        { "id": "B1F", "label": "改札・コンコース" },
+        { "id": "B2F", "label": "千代田線ホーム" },
+        { "id": "B3F", "label": "銀座線・半蔵門線ホーム" }
+      ],
+      "transferGuides": [
+        {
+          "from": "銀座線",
+          "to": "半蔵門線",
+          "steps": [
+            { "type": "walk", "note": "同一ホームの反対側に移動するだけ(段差なし・ベビーカー最楽の乗換)" }
+          ]
+        },
+        {
+          "from": "銀座線・半蔵門線",
+          "to": "千代田線",
+          "steps": [
+            { "type": "elevator", "fromFloor": "B3F", "toFloor": "B2F", "name": "ホーム連絡EV" },
+            { "type": "walk", "note": "千代田線ホームへ(EV位置は駅構内図で要確認)" }
+          ]
+        }
+      ]
     },
     "銀座": {
       "verified": false,

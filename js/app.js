@@ -17,7 +17,7 @@
     try { return JSON.parse(localStorage.getItem(LS_REVIEWS)) || {}; } catch { return {}; }
   }
   function saveReviews(r) { localStorage.setItem(LS_REVIEWS, JSON.stringify(r)); }
-  const nrm = (name) => (window.Router ? Router.normName(name) : name);
+  const nrm = (name) => (typeof Router !== "undefined" ? Router.normName(name) : name);
   function facOf(name) { return facilities[nrm(name)] || facilities[name]; }
   function reviewsFor(name) { return loadReviews()[nrm(name)] || []; }
 
@@ -38,10 +38,11 @@
   // ---------- データ読み込み ----------
   async function boot() {
     try {
+      const DATA_V = "3";
       const [network, walks, fac] = await Promise.all([
-        fetch("data/network.json").then((r) => r.json()),
-        fetch("data/walk_transfers.json").then((r) => r.json()),
-        fetch("data/facilities.json").then((r) => r.json()),
+        fetch(`data/network.json?v=${DATA_V}`).then((r) => r.json()),
+        fetch(`data/walk_transfers.json?v=${DATA_V}`).then((r) => r.json()),
+        fetch(`data/facilities.json?v=${DATA_V}`).then((r) => r.json()),
       ]);
       facilities = fac.stations || {};
       Router.init(network, walks, facilities, reviewsFor);
@@ -91,18 +92,37 @@
       chips.push(`<span class="chip unknown">🚻 情報なし</span>`);
     }
     if (f?.caution) chips.push(`<span class="chip warn">⚠️ 注意あり</span>`);
+    if (f?.transferGuides?.length) chips.push(`<button type="button" class="chip nav" data-station="${esc(name)}">🧭 乗換ナビ</button>`);
     const rv = reviewsFor(name).length;
     if (rv) chips.push(`<span class="chip">💬 口コミ${rv}件</span>`);
     return `<div class="facility-chips">${chips.join("")}</div>`;
   }
 
+  // この駅×路線の号車おすすめ(carRecommend + 乗換ガイドのcarステップ + 口コミの号車メモ)
+  function carHints(name, lineName) {
+    const f = facOf(name);
+    const hints = [];
+    const matchLine = (l) => !lineName || !l || l.includes(lineName) || lineName.includes(l) ||
+      Router.normName(l) === Router.normName(lineName || "");
+    for (const r of f?.carRecommend || []) {
+      if (matchLine(r.line)) hints.push(`${r.direction || ""} ${r.car || ""}${r.reason ? `(${r.reason})` : ""}`);
+    }
+    for (const g of f?.transferGuides || []) {
+      for (const st of g.steps) {
+        if (st.type === "car" && matchLine(st.line)) {
+          hints.push(`${st.direction || ""} ${st.car || ""}${st.reason ? `(${st.reason})` : ""}`);
+        }
+      }
+    }
+    for (const rv of reviewsFor(name)) {
+      if (rv.car) hints.push(`💬 ${rv.car}`);
+    }
+    return hints;
+  }
+
   function carRecommendHtml(name, lineName) {
-    const recs = (facOf(name)?.carRecommend || [])
-      .filter((r) => !lineName || !r.line || r.line.includes(lineName) || lineName.includes(r.line));
-    if (!recs.length) return "";
-    return recs.map((r) =>
-      `<div class="chip good">🚃 ${esc(r.line || "")} ${esc(r.direction || "")} ${esc(r.car || "")} ${esc(r.reason || "")}</div>`
-    ).join("");
+    return carHints(name, lineName).slice(0, 2).map((h) =>
+      `<div class="chip good">🚃 ${esc(h)}</div>`).join("");
   }
 
   function renderRoutes(fromName, toName, routes) {
@@ -121,7 +141,7 @@
         } else {
           tl.push(`<div class="tl-leg">
             <div class="tl-legline" style="background:${esc(leg.lineColor)}"></div>
-            <div class="tl-leginfo"><b>${esc(leg.lineName)}</b> ${leg.stops}駅 / 約${leg.time}分
+            <div class="tl-leginfo"><b>${esc(leg.lineName)}</b> <span class="leg-direction">${esc(Router.normName(last.n))}方面</span> ${leg.stops}駅 / 約${leg.time}分
               ${carRecommendHtml(first.n, leg.lineName)}</div>
           </div>`);
         }
@@ -220,6 +240,29 @@
       ${f.caution ? `<div class="fac-block fac-caution"><div class="fac-title">⚠️ 注意</div><div class="fac-note">${esc(f.caution)}</div></div>` : ""}
     ` : `<p class="empty-note">この駅の施設シードデータはまだありません。下の口コミ・メモで情報を追加できます。公式の駅構内図も確認してください。</p>`;
 
+    const guidesHtml = (f?.transferGuides || []).map((g) => {
+      let evNo = 0;
+      const steps = g.steps.map((st) => {
+        if (st.type === "car") {
+          return `<li><span class="step-no step-car">🚃</span><span><b>${esc(st.line || "")}</b> ${esc(st.direction || "")}は<b>${esc(st.car || "")}</b>へ${st.reason ? ` — ${esc(st.reason)}` : ""}</span></li>`;
+        }
+        if (st.type === "elevator") {
+          evNo++;
+          return `<li><span class="step-no ev">${evNo}</span><span>🛗 <b>${esc(st.fromFloor)} → ${esc(st.toFloor)}</b> ${esc(st.name || "エレベーター")}で移動</span></li>`;
+        }
+        return `<li><span class="step-no">🚶</span><span>${esc(st.note || "移動")}</span></li>`;
+      }).join("");
+      const svg = (typeof StationMap !== "undefined" && StationMap.render(f, g)) || "";
+      return `<div class="guide-block">
+        <div class="guide-title">${esc(g.from)} → ${esc(g.to)}</div>
+        <ul class="guide-steps">${steps}</ul>
+        ${svg}
+      </div>`;
+    }).join("");
+    const navHtml = guidesHtml
+      ? `<h3>🧭 乗換ナビ<span class="unverified">参考情報・要現地確認</span></h3>${guidesHtml}`
+      : "";
+
     const revHtml = revs.length
       ? revs.slice().reverse().map((r) => `<div class="review">
           ${r.tc ? `<div>🚻 きれいさ <span class="stars">${stars(r.tc)}</span></div>` : ""}
@@ -234,6 +277,7 @@
       <h2>🚉 ${esc(name)}</h2>
       <p class="hint">${esc(lines)}</p>
       ${facHtml}
+      ${navHtml}
       <div class="station-links">
         <a href="https://www.google.com/search?q=${encodeURIComponent(name + "駅 構内図 エレベーター")}" target="_blank" rel="noopener">🗺 構内図を検索</a>
         <a href="https://www.google.com/maps/search/${encodeURIComponent(name + "駅")}" target="_blank" rel="noopener">📍 地図</a>
