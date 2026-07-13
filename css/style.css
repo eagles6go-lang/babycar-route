@@ -249,11 +249,16 @@ main { padding: 14px 12px 60px; max-width: 640px; margin: 0 auto; }
 
 /* 駅断面図(アイソメトリックSVG) */
 .sm-svg { width: 100%; height: auto; display: block; margin-top: 4px; }
+.sm-svg text { paint-order: stroke; stroke: #f8fafc; stroke-width: 2.5px; stroke-linejoin: round; }
 .sm-floor-top { fill: #dde7f0; stroke: #90a4ae; stroke-width: .8; }
 .sm-floor-front { fill: #b9c9d6; stroke: #90a4ae; stroke-width: .6; }
 .sm-floor-side { fill: #a7b8c6; stroke: #90a4ae; stroke-width: .6; }
 .sm-floor-id { font-size: 12px; font-weight: 800; fill: #37474f; }
-.sm-floor-label { font-size: 8.5px; fill: #607d8b; }
+.sm-floor-label { font-size: 9px; font-weight: 600; fill: #546e7a; }
+.sm-note { font-size: 8.5px; fill: #b26a00; }
+.sm-car-num { font-size: 7.5px; fill: #78909c; stroke: none; }
+.sm-car-num-rec { fill: #fff; font-weight: 800; }
+.sm-car-rec { fill: #fb8c00; stroke: #e65100; }
 .sm-shaft { fill: #ffe082; opacity: .88; stroke: #f9a825; stroke-width: .8; }
 .sm-shaft-top { fill: #ffecb3; stroke: #f9a825; stroke-width: .8; }
 .sm-shaft-side { fill: #ffd54f; opacity: .85; stroke: #f9a825; stroke-width: .6; }

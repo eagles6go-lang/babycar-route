@@ -7,17 +7,18 @@ const StationMap = (() => {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   // 幾何定数
-  const W = 250;      // 床スラブの幅
-  const SKEW = 26;    // 奥行きの斜め方向オフセット
-  const DEPTH = 16;   // 床スラブの見かけの奥行き
+  const W = 264;      // 床スラブの幅
+  const SKEW = 24;    // 奥行きの斜め方向オフセット
+  const DEPTH = 15;   // 床スラブの見かけの奥行き
   const THICK = 7;    // 床スラブの厚み
-  const DY = 62;      // 階と階の間隔
-  const OX = 66;      // 左余白(階ラベル用)
-  const OY = 26;      // 上余白
+  const DY = 64;      // 階と階の間隔
+  const OX = 42;      // 左余白(階数表示用)
+  const OY = 30;      // 上余白
+  const VBW = OX + W + SKEW + 10;
 
   function floorY(i) { return OY + i * DY; }
 
-  // 床スラブ(平行四辺形+厚み)
+  // 床スラブ(平行四辺形+厚み)。ラベルはスラブの手前側に載せる
   function slab(i, label, id) {
     const y = floorY(i);
     const top = `M${OX + SKEW},${y} l${W},0 l${-SKEW},${DEPTH} l${-W},0 z`;
@@ -27,53 +28,72 @@ const StationMap = (() => {
       <path d="${top}" class="sm-floor-top"/>
       <path d="${front}" class="sm-floor-front"/>
       <path d="${side}" class="sm-floor-side"/>
-      <text x="${OX - 8}" y="${y + DEPTH}" text-anchor="end" class="sm-floor-id">${esc(id)}</text>
-      <text x="${OX - 8}" y="${y + DEPTH + 12}" text-anchor="end" class="sm-floor-label">${esc(label)}</text>`;
+      <text x="${OX - 6}" y="${y + DEPTH + 2}" text-anchor="end" class="sm-floor-id">${esc(id)}</text>
+      <text x="${OX + 4}" y="${y + DEPTH + THICK + 11}" class="sm-floor-label">${esc(label)}</text>`;
   }
 
-  // エレベーターの縦シャフト
-  function shaft(x, iFrom, iTo, order, name) {
+  // エレベーターの縦シャフト。x は中央線の位置
+  function shaft(cx, iFrom, iTo, order, name) {
+    const w = 24, d = 8;
+    const x = cx - w / 2;
     const yTop = floorY(Math.min(iFrom, iTo)) + DEPTH / 2;
     const yBot = floorY(Math.max(iFrom, iTo)) + DEPTH / 2;
-    const w = 26, d = 9;
-    const upward = iFrom > iTo; // 下の階から上の階へ
+    const upward = iFrom > iTo;
     const yArrowFrom = upward ? yBot - 6 : yTop + 20;
     const yArrowTo = upward ? yTop + 20 : yBot - 6;
     return `
       <path d="M${x},${yTop} l${w},0 l0,${yBot - yTop} l${-w},0 z" class="sm-shaft"/>
       <path d="M${x},${yTop} l${d},${-d} l${w},0 l${-d},${d} z" class="sm-shaft-top"/>
       <path d="M${x + w},${yTop} l${d},${-d} l0,${yBot - yTop} l${-d},${d} z" class="sm-shaft-side"/>
-      <line x1="${x + w / 2}" y1="${yArrowFrom}" x2="${x + w / 2}" y2="${yArrowTo}" class="sm-ev-arrow" marker-end="url(#smArrow)"/>
-      <text x="${x + w / 2}" y="${(yTop + yBot) / 2 + 4}" text-anchor="middle" class="sm-ev-label">EV</text>
-      <circle cx="${x - 2}" cy="${yTop - 2}" r="9" class="sm-order"/>
-      <text x="${x - 2}" y="${yTop + 1.5}" text-anchor="middle" class="sm-order-num">${order}</text>
-      ${name ? `<text x="${x + w / 2}" y="${yBot + 16}" text-anchor="middle" class="sm-ev-name">${esc(name)}</text>` : ""}`;
+      <line x1="${cx}" y1="${yArrowFrom}" x2="${cx}" y2="${yArrowTo}" class="sm-ev-arrow" marker-end="url(#smArrow)"/>
+      <text x="${cx}" y="${(yTop + yBot) / 2 + 4}" text-anchor="middle" class="sm-ev-label">EV</text>
+      <circle cx="${x - 1}" cy="${yTop - 3}" r="9" class="sm-order"/>
+      <text x="${x - 1}" y="${yTop + .5}" text-anchor="middle" class="sm-order-num">${order}</text>
+      ${name ? `<text x="${cx}" y="${yBot + 15}" text-anchor="middle" class="sm-ev-name">${esc(name)}</text>` : ""}`;
   }
 
-  // ホーム上の列車と乗車位置バッジ
-  function train(iFloor, carText) {
-    const y = floorY(iFloor) - 3;
-    const tx = OX + SKEW + 26, tw = 150, th = 12, cars = 5;
-    let pos = 0.5;
-    if (/前/.test(carText)) pos = 0.15;
-    else if (/後/.test(carText)) pos = 0.85;
-    const bx = tx + tw * pos;
-    const cells = Array.from({ length: cars }, (_, i) =>
-      `<rect x="${tx + (tw / cars) * i + 1}" y="${y - th}" width="${tw / cars - 2}" height="${th}" rx="2" class="sm-car"/>`).join("");
-    return `
-      ${cells}
-      <circle cx="${bx}" cy="${y - th - 12}" r="8" class="sm-baby"/>
-      <text x="${bx}" y="${y - th - 8.5}" text-anchor="middle" class="sm-baby-icon">👶</text>
-      <text x="${bx + 12}" y="${y - th - 9}" class="sm-car-text">${esc(carText)}</text>`;
+  // 号車番号つき列車。ホーム階のスラブ上に描く
+  const TRAIN_X = OX + SKEW + 8;
+  const TRAIN_W = W - 60;
+  function carCenterX(car, cars) {
+    return TRAIN_X + (TRAIN_W / cars) * (car - 0.5);
+  }
+  function train(iFloor, cars, recCar, carText) {
+    const y = floorY(iFloor) + 1;
+    const th = 13;
+    const cw = TRAIN_W / cars;
+    let cells = "";
+    for (let i = 1; i <= cars; i++) {
+      const cx = TRAIN_X + cw * (i - 1);
+      const rec = recCar === i;
+      cells += `<rect x="${cx + .8}" y="${y - th}" width="${cw - 1.6}" height="${th}" rx="2" class="sm-car${rec ? " sm-car-rec" : ""}"/>
+        <text x="${cx + cw / 2}" y="${y - th / 2 + 2.5}" text-anchor="middle" class="sm-car-num${rec ? " sm-car-num-rec" : ""}">${i}</text>`;
+    }
+    let badge = "";
+    if (recCar) {
+      const bx = carCenterX(recCar, cars);
+      badge = `<circle cx="${bx}" cy="${y - th - 11}" r="8" class="sm-baby"/>
+        <text x="${bx}" y="${y - th - 7.5}" text-anchor="middle" class="sm-baby-icon">👶</text>
+        <text x="${Math.min(bx + 11, OX + W - 4)}" y="${y - th - 8}" class="sm-car-text">${esc(carText || recCar + "号車")}</text>`;
+    } else if (carText) {
+      let pos = 0.5;
+      if (/前/.test(carText)) pos = 0.15;
+      else if (/後/.test(carText)) pos = 0.85;
+      const bx = TRAIN_X + TRAIN_W * pos;
+      badge = `<circle cx="${bx}" cy="${y - th - 11}" r="8" class="sm-baby"/>
+        <text x="${bx}" y="${y - th - 7.5}" text-anchor="middle" class="sm-baby-icon">👶</text>
+        <text x="${bx + 11}" y="${y - th - 8}" class="sm-car-text">${esc(carText)}</text>`;
+    }
+    return cells + badge;
   }
 
-  // 階にあるトイレ(おむつ替え)マーカー
+  // 階にあるトイレ(おむつ替え)マーカー。最後に描いて隠れないようにする
   function toilet(i, label) {
-    const x = OX + W - 14, y = floorY(i) + DEPTH / 2 + 1;
+    const x = OX + W + SKEW - 12, y = floorY(i) + 3;
     return `
-      <circle cx="${x}" cy="${y - 4}" r="9" class="sm-toilet"/>
-      <text x="${x}" y="${y - .5}" text-anchor="middle" class="sm-toilet-icon">🚻</text>
-      ${label ? `<text x="${x + 12}" y="${y + 10}" text-anchor="end" class="sm-toilet-label">${esc(label)}</text>` : ""}`;
+      <circle cx="${x}" cy="${y}" r="9" class="sm-toilet"/>
+      <text x="${x}" y="${y + 3.5}" text-anchor="middle" class="sm-toilet-icon">🚻</text>
+      ${label ? `<text x="${x + 8}" y="${y + 16}" text-anchor="end" class="sm-toilet-label">${esc(label)}</text>` : ""}`;
   }
 
   // guide(transferGuide)1件をSVGにする
@@ -84,30 +104,49 @@ const StationMap = (() => {
 
     const parts = [];
     floors.forEach((f, i) => parts.push(slab(i, f.label, f.id)));
-    floors.forEach((f, i) => { if (f.toilet) parts.push(toilet(i, f.toilet)); });
 
-    let order = 0, x = OX + SKEW + 46, carDrawn = false, pendingCar = null;
+    // carステップの情報(何号車か)を拾う
+    let carStep = null;
     for (const st of guide?.steps || []) {
-      if (st.type === "car") { pendingCar = st.car || ""; continue; }
-      if (st.type === "elevator") {
-        order++;
-        const a = idx.get(st.fromFloor), b = idx.get(st.toFloor);
-        if (a == null || b == null) continue;
-        if (pendingCar != null && !carDrawn) {
-          parts.push(train(a, pendingCar));
-          carDrawn = true;
-        }
-        parts.push(shaft(x, a, b, order, st.name));
-        x += 66;
-        if (x > OX + W - 20) x = OX + SKEW + 46;
+      if (st.type === "car") { carStep = st; break; }
+    }
+    const cars = carStep?.cars || guide?.cars || 10;
+    const recCar = Number.isFinite(carStep?.carNo) ? carStep.carNo : null;
+
+    let order = 0, fallbackX = OX + SKEW + 52, trainFloor = null, firstShaftUnaligned = false;
+    const shafts = [];
+    for (const st of guide?.steps || []) {
+      if (st.type !== "elevator") continue;
+      order++;
+      const a = idx.get(st.fromFloor), b = idx.get(st.toFloor);
+      if (a == null || b == null) continue;
+      if (trainFloor == null) trainFloor = Math.max(a, b) === a ? a : a; // 最初のEVの乗り場側
+      let cx;
+      if (order === 1 && Number.isFinite(st.atCar)) {
+        cx = carCenterX(st.atCar, cars);
+      } else if (order === 1 && recCar) {
+        cx = carCenterX(recCar, cars);
+      } else {
+        if (order === 1) firstShaftUnaligned = true;
+        cx = fallbackX;
+      }
+      shafts.push(shaft(cx, a, b, order, st.name));
+      fallbackX += 68;
+      if (fallbackX > OX + W - 24) fallbackX = OX + SKEW + 52;
+    }
+
+    // 最初のEVの乗り場階に号車つき列車を描く(号車が分からない駅もその旨を明示)
+    if (trainFloor != null) {
+      parts.push(train(trainFloor, cars, recCar, carStep?.car));
+      if (firstShaftUnaligned) {
+        parts.push(`<text x="${OX + SKEW + 4}" y="${floorY(trainFloor) - 20}" class="sm-note">※EV前の号車は未確認(メモ募集)</text>`);
       }
     }
-    if (pendingCar != null && !carDrawn && floors.length) {
-      parts.push(train(floors.length - 1, pendingCar));
-    }
+    parts.push(...shafts);
+    floors.forEach((f, i) => { if (f.toilet) parts.push(toilet(i, f.toilet)); });
 
-    const h = floorY(floors.length - 1) + DEPTH + THICK + 34;
-    return `<svg viewBox="0 0 ${OX + W + SKEW + 14} ${h}" xmlns="http://www.w3.org/2000/svg" class="sm-svg" role="img" aria-label="駅の階構造図">
+    const h = floorY(floors.length - 1) + DEPTH + THICK + 30;
+    return `<svg viewBox="0 0 ${VBW} ${h}" xmlns="http://www.w3.org/2000/svg" class="sm-svg" role="img" aria-label="駅の階構造図">
       <defs>
         <marker id="smArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" class="sm-arrowhead"/>
