@@ -11,6 +11,7 @@ const Router = (() => {
   let adj = new Map();       // stationCode -> [{to, line, time}]  line=0 は徒歩連絡
   let facilities = {};       // 駅名 -> 施設情報
   let reviewsProvider = null; // 駅名 -> 口コミ配列を返す関数
+  let expressLines = new Set(); // 特急券が必要な路線コード
 
   const WALK = 0;
 
@@ -56,26 +57,44 @@ const Router = (() => {
       }
     }
 
-    // 特急券が必要な路線は日常のベビーカー移動の候補から外す
-    const EXCLUDE = /新幹線|成田エクスプレス|スカイライナー/;
+    // 特急券が必要な路線(オプションで利用可)
+    const EXPRESS = /新幹線|成田エクスプレス|スカイライナー/;
+    expressLines = new Set(net.lines.filter((l) => EXPRESS.test(l.n)).map((l) => l.c));
     for (const line of net.lines) {
-      if (EXCLUDE.test(line.n)) continue;
+      const isExp = expressLines.has(line.c);
       for (let i = 0; i + 1 < line.s.length; i++) {
         const a = stationByCode.get(line.s[i]);
         const b = stationByCode.get(line.s[i + 1]);
         if (!a || !b) continue;
         const km = haversineKm(a, b);
-        if (km > 30) continue; // 関東で切り詰めた際の飛び区間は接続しない
-        const t = Math.max(1.4, km / 0.75 + 0.6); // 約45km/h + 停車
+        if (km > (isExp ? 170 : 60)) continue; // 異常な飛び区間は接続しない
+        const t = isExp
+          ? Math.max(3, km / 3.4 + 1)          // 新幹線 約200km/h + 停車
+          : Math.max(1.4, km / 0.75 + 0.6);    // 在来線 約45km/h + 停車
         addEdge(a.c, b.c, line.c, t);
         addEdge(b.c, a.c, line.c, t);
       }
     }
+    // 徒歩連絡: 同名駅が全国にあるため(例: 三田は東京と兵庫)、
+    // 名前に合致する候補の中から最も近いペアを選び、2km超は誤マッチとして捨てる
+    const candidates = new Map(); // 正規化名 -> station[]
+    for (const s of net.stations) {
+      for (const key of new Set([s.n, normName(s.n)])) {
+        if (!candidates.has(key)) candidates.set(key, []);
+        candidates.get(key).push(s);
+      }
+    }
     for (const p of (walkTransfers?.pairs || [])) {
-      const a = stationsByName.get(p.a), b = stationsByName.get(p.b);
-      if (!a || !b) continue;
-      addEdge(a.c, b.c, WALK, p.minutes);
-      addEdge(b.c, a.c, WALK, p.minutes);
+      const as = candidates.get(p.a) || [], bs = candidates.get(p.b) || [];
+      let best = null, bestKm = Infinity;
+      for (const a of as) for (const b of bs) {
+        if (a.c === b.c) continue;
+        const km = haversineKm(a, b);
+        if (km < bestKm) { bestKm = km; best = [a, b]; }
+      }
+      if (!best || bestKm > 2) continue;
+      addEdge(best[0].c, best[1].c, WALK, p.minutes);
+      addEdge(best[1].c, best[0].c, WALK, p.minutes);
     }
   }
 
@@ -125,7 +144,7 @@ const Router = (() => {
   }
 
   // (駅,路線)状態のダイクストラ。penalty=乗換基本ペナルティ(分)
-  function dijkstra(fromCode, toCode, penalty, boardCost) {
+  function dijkstra(fromCode, toCode, penalty, boardCost, useExpress) {
     const dist = new Map(), prev = new Map();
     const key = (s, l) => s * 100000 + l;
     const heap = new Heap();
@@ -143,6 +162,7 @@ const Router = (() => {
       }
       const st = stationByCode.get(cur.s);
       for (const e of adj.get(cur.s) || []) {
+        if (!useExpress && expressLines.has(e.line)) continue;
         let cost = e.time;
         let transferred = false;
         if (e.line !== cur.l) {
@@ -229,11 +249,12 @@ const Router = (() => {
       signature: legs.map((l) => `${l.lineCode}:${l.stations[l.stations.length - 1].c}`).join(">") };
   }
 
-  function search(fromName, toName) {
+  function search(fromName, toName, opts = {}) {
     const from = stationsByName.get(fromName);
     const to = stationsByName.get(toName);
     if (!from || !to) return { error: "駅が見つかりません", routes: [] };
     if (from.c === to.c) return { error: "出発駅と到着駅が同じです", routes: [] };
+    const useExpress = !!opts.useExpress;
 
     const configs = [
       { label: "バランス", penalty: 8, boardCost: 3 },
@@ -243,7 +264,7 @@ const Router = (() => {
     const routes = [];
     const seen = new Set();
     for (const cfg of configs) {
-      const path = dijkstra(from.c, to.c, cfg.penalty, cfg.boardCost);
+      const path = dijkstra(from.c, to.c, cfg.penalty, cfg.boardCost, useExpress);
       const sum = summarize(path);
       if (!sum) continue;
       if (seen.has(sum.signature)) continue;

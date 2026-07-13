@@ -18,7 +18,21 @@
   }
   function saveReviews(r) { localStorage.setItem(LS_REVIEWS, JSON.stringify(r)); }
   const nrm = (name) => (typeof Router !== "undefined" ? Router.normName(name) : name);
-  function facOf(name) { return facilities[nrm(name)] || facilities[name]; }
+  const PREF_NAMES = ["", "北海道", "青森", "岩手", "宮城", "秋田", "山形", "福島", "茨城", "栃木",
+    "群馬", "埼玉", "千葉", "東京", "神奈川", "新潟", "富山", "石川", "福井", "山梨",
+    "長野", "岐阜", "静岡", "愛知", "三重", "滋賀", "京都", "大阪", "兵庫", "奈良",
+    "和歌山", "鳥取", "島根", "岡山", "広島", "山口", "徳島", "香川", "愛媛", "高知",
+    "福岡", "佐賀", "長崎", "熊本", "大分", "宮崎", "鹿児島", "沖縄"];
+  function facOf(name) {
+    const exact = facilities[name];
+    if (exact) return exact;
+    const f = facilities[nrm(name)];
+    if (!f) return undefined;
+    // 同名駅対策: 都道府県が分かる場合は一致を確認(例: 大手町は東京と愛媛にある)
+    const st = Router.stationByName(name);
+    if (f.pref != null && st && st.p !== f.pref) return undefined;
+    return f;
+  }
   function reviewsFor(name) { return loadReviews()[nrm(name)] || []; }
 
   function cleanlinessOf(name) {
@@ -38,7 +52,7 @@
   // ---------- データ読み込み ----------
   async function boot() {
     try {
-      const DATA_V = "4";
+      const DATA_V = "7";
       const [network, walks, fac] = await Promise.all([
         fetch(`data/network.json?v=${DATA_V}`).then((r) => r.json()),
         fetch(`data/walk_transfers.json?v=${DATA_V}`).then((r) => r.json()),
@@ -48,7 +62,7 @@
       Router.init(network, walks, facilities, reviewsFor);
       ready = true;
       $("load-status").textContent =
-        `関東 ${network.stations.length}駅 / ${network.lines.length}路線 に対応`;
+        `全国 ${network.stations.length}駅 / ${network.lines.length}路線 に対応`;
     } catch (e) {
       $("load-status").textContent = "データの読み込みに失敗しました: " + e.message;
     }
@@ -65,7 +79,8 @@
       }
       box.innerHTML = list.map((s) => {
         const lines = Router.linesOf(s).slice(0, 3).map((l) => l.n).join("・");
-        return `<button type="button" data-name="${esc(s.n)}">${esc(s.n)}<span class="sub">${esc(s.k)} | ${esc(lines)}</span></button>`;
+        const pref = PREF_NAMES[s.p] || "";
+        return `<button type="button" data-name="${esc(s.n)}">${esc(s.n)} <span style="color:#90a4ae;font-size:.75rem">${esc(pref)}</span><span class="sub">${esc(s.k)} | ${esc(lines)}</span></button>`;
       }).join("");
       box.classList.add("open");
     });
@@ -411,6 +426,7 @@
       $("to-input").value = a;
     });
 
+    $("use-express").checked = localStorage.getItem("bcr_use_express") === "1";
     $("btn-search").addEventListener("click", doSearch);
     $("to-input").addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
 
@@ -431,7 +447,9 @@
     }
     $("from-input").value = fromName;
     $("to-input").value = toName;
-    const { error, routes } = Router.search(fromName, toName);
+    const useExpress = $("use-express").checked;
+    localStorage.setItem("bcr_use_express", useExpress ? "1" : "");
+    const { error, routes } = Router.search(fromName, toName, { useExpress });
     if (error) {
       $("results").innerHTML = `<p class="empty-note">${esc(error)}</p>`;
       return;

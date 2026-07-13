@@ -1,6 +1,7 @@
-// 関東の鉄道ネットワークデータを station_database (CC BY 4.0) から生成する
+// 鉄道ネットワークデータを station_database (CC BY 4.0) から生成する
 // 出典: https://github.com/Seo-4d696b75/station_database
-// 使い方: node tools/build_network.mjs
+// 使い方: node tools/build_network.mjs        (日本全国)
+//        node tools/build_network.mjs kanto  (関東のみ)
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +12,9 @@ const OUT = path.join(ROOT, "data", "network.json");
 const BASE = "https://raw.githubusercontent.com/Seo-4d696b75/station_database/main/out/main";
 
 // 関東: 茨城8 栃木9 群馬10 埼玉11 千葉12 東京13 神奈川14
+const KANTO_ONLY = process.argv[2] === "kanto";
 const KANTO = new Set([8, 9, 10, 11, 12, 13, 14]);
+const inScope = (pref) => !KANTO_ONLY || KANTO.has(pref);
 
 async function fetchJson(url, cacheName) {
   const cachePath = path.join(CACHE, cacheName);
@@ -31,10 +34,10 @@ const stations = await fetchJson(`${BASE}/station.json`, "station.json");
 
 const stationByCode = new Map(stations.map((s) => [s.code, s]));
 
-// 関東に駅を持つ路線を対象にする(新幹線は在来乗換の比較対象として含める)
+// 対象範囲に駅を持つ路線を選ぶ
 const kantoLineCodes = new Set();
 for (const s of stations) {
-  if (s.closed || !KANTO.has(s.prefecture)) continue;
+  if (s.closed || !inScope(s.prefecture)) continue;
   for (const lc of s.lines) kantoLineCodes.add(lc);
 }
 
@@ -56,9 +59,9 @@ async function worker() {
       console.warn(`skip ${line.name}: ${e.message}`);
       continue;
     }
-    // 関東内の駅だけ残す(路線の端が関東外に伸びる場合は切り詰め)
+    // 対象範囲の駅だけ残す(関東モード時は路線の端を切り詰め)
     const seq = detail.station_list
-      .filter((s) => !s.closed && KANTO.has(s.prefecture))
+      .filter((s) => !s.closed && inScope(s.prefecture))
       .map((s) => s.code);
     if (seq.length < 2) continue;
     for (const c of seq) usedStationCodes.add(c);
