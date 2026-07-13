@@ -216,12 +216,14 @@
     document.body.style.overflow = "hidden";
   }
   function closeSheets() {
+    if (typeof Station3D !== "undefined") Station3D.disposeAll();
     $("station-sheet").hidden = true;
     $("settings-sheet").hidden = true;
     document.body.style.overflow = "";
   }
 
   function renderStationSheet() {
+    if (typeof Station3D !== "undefined") Station3D.disposeAll();
     const name = currentStation;
     const f = facOf(name);
     const st = Router.stationByName(name);
@@ -240,7 +242,7 @@
       ${f.caution ? `<div class="fac-block fac-caution"><div class="fac-title">⚠️ 注意</div><div class="fac-note">${esc(f.caution)}</div></div>` : ""}
     ` : `<p class="empty-note">この駅の施設シードデータはまだありません。下の口コミ・メモで情報を追加できます。公式の駅構内図も確認してください。</p>`;
 
-    const guidesHtml = (f?.transferGuides || []).map((g) => {
+    const guidesHtml = (f?.transferGuides || []).map((g, gi) => {
       let evNo = 0;
       const steps = g.steps.map((st) => {
         if (st.type === "car") {
@@ -253,10 +255,11 @@
         return `<li><span class="step-no">🚶</span><span>${esc(st.note || "移動")}</span></li>`;
       }).join("");
       const svg = (typeof StationMap !== "undefined" && StationMap.render(f, g)) || "";
-      return `<div class="guide-block">
+      return `<div class="guide-block" data-guide="${gi}">
         <div class="guide-title">${esc(g.from)} → ${esc(g.to)}</div>
         <ul class="guide-steps">${steps}</ul>
-        ${svg}
+        <div class="map-area">${svg}</div>
+        ${f.floors?.length ? `<button type="button" class="secondary-btn btn-3d" data-guide="${gi}">🧊 3Dで見る(指で回転)</button>` : ""}
       </div>`;
     }).join("");
     const navHtml = guidesHtml
@@ -310,6 +313,31 @@
     });
     $("btn-add-review").addEventListener("click", addReview);
     $("btn-close-station").addEventListener("click", closeSheets);
+
+    // 3D表示切替
+    $("station-sheet-body").querySelectorAll(".btn-3d").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const block = btn.closest(".guide-block");
+        const area = block.querySelector(".map-area");
+        const guide = (f?.transferGuides || [])[Number(btn.dataset.guide)];
+        if (btn.dataset.mode === "3d") {
+          if (typeof Station3D !== "undefined") Station3D.disposeAll();
+          renderStationSheet();
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = "3Dを読み込み中…";
+        try {
+          area.innerHTML = "";
+          await Station3D.show(area, f, guide);
+          btn.dataset.mode = "3d";
+          btn.textContent = "📄 2Dの図に戻す";
+        } catch (e) {
+          area.innerHTML = `<p class="hint">3D表示に失敗しました(${esc(e.message)})。2D図をご利用ください。</p>`;
+        }
+        btn.disabled = false;
+      });
+    });
   }
 
   function addReview() {

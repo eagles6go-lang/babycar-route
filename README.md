@@ -36,8 +36,10 @@ python -m http.server 8642
 - **駅の詳細**: エレベーター・おむつ替えトイレ(きれいさ★)・おすすめ号車・注意点を表示。
   シードデータは `data/facilities.json`(参考情報・要現地確認)。
 - **乗換ナビ(🧭)**: 駅ごとに「何号車に乗る→どのエレベーターで何階から何階へ→どう歩く」の
-  ステップと、階構造のアイソメトリック(3D風)断面図を表示。
+  ステップと、階構造のアイソメトリック断面図を表示。
+  「🧊 3Dで見る」で指で回転・ピンチズームできる3D表示(three.js)に切替可能。
   データは `facilities.json` の `floors` / `transferGuides` で駅ごとに追加できる。
+  EV前の号車位置は `steps[].atCar`(号車番号)を設定するとシャフトがその号車上に描画される。
 - **口コミ・メモ**: 駅ごとに「トイレのきれいさ」「移動しやすさ」の★評価、号車メモ、自由メモを記録。
   ブラウザのlocalStorageに保存され、設定からJSONでエクスポート/インポートできます。
   → 良い情報が貯まったら `data/facilities.json` に反映していく運用を想定。
@@ -57,6 +59,7 @@ node tools/build_network.mjs
 ## データ出典・注意
 
 - 駅・路線データ: [station_database](https://github.com/Seo-4d696b75/station_database) (CC BY 4.0)
+- 3D表示: [three.js](https://threejs.org/) r128 (MIT) を `vendor/` に同梱
 - `data/facilities.json` のバリアフリー情報はシード(参考)情報です。**正確性は保証されません。
   必ず各鉄道会社の公式駅構内図・[らくらくおでかけネット](https://www.ecomo-rakuraku.jp/)で確認してください。**
 - 徒歩連絡(駅名が異なる乗換)は `data/walk_transfers.json` で手動管理しています。
