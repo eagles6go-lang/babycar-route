@@ -182,6 +182,7 @@ main { padding: 14px 12px 60px; max-width: 640px; margin: 0 auto; }
   position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100;
   display: flex; align-items: flex-end;
 }
+.sheet-backdrop[hidden] { display: none; }
 .sheet {
   background: #fff; width: 100%; max-width: 640px; margin: 0 auto;
   border-radius: 20px 20px 0 0; max-height: 88vh; overflow-y: auto;
