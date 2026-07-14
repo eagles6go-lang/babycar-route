@@ -312,6 +312,22 @@ main { padding: 14px 12px 60px; max-width: 640px; margin: 0 auto; }
 .sm-gate-icon { font-size: 7px; }
 .sm-gate-label { font-size: 8px; fill: #283593; font-weight: 800; }
 .step-gate { background: #3f51b5; }
+
+/* フロア別平面図 */
+.pl-panel { fill: #eef4fa; stroke: #90a4ae; stroke-width: 1; }
+.pl-title { font-size: 11px; font-weight: 800; fill: #37474f; }
+.pl-compass { font-size: 8px; fill: #90a4ae; }
+.pl-ev { fill: #ffe082; stroke: #f9a825; stroke-width: 1.4; }
+.pl-ev-label { font-size: 9px; font-weight: 800; fill: #795548; }
+.pl-gate-icon { font-size: 9px; }
+.pl-connect { stroke: #f9a825; stroke-width: 3; stroke-dasharray: 6 4; }
+.pl-connect-label { font-size: 9.5px; font-weight: 700; fill: #b26a00; }
+.map-tabs { display: flex; gap: 6px; margin: 6px 0; }
+.map-tab {
+  border: 1.5px solid var(--line); background: #fff; color: #37474f;
+  font-size: .78rem; font-weight: 700; border-radius: 999px; padding: 6px 12px; cursor: pointer;
+}
+.map-tab.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .sm-toilet { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1; }
 .sm-toilet-icon { font-size: 9px; }
 .sm-toilet-label { font-size: 8px; fill: #2e7d32; }

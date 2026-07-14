@@ -269,5 +269,186 @@ const StationMap = (() => {
     </svg>`;
   }
 
-  return { render };
+  // ==========================================================
+  // フロア別平面図(詳細導線ビュー)
+  // ガイドが通る階を上から順にパネルで描き、各階の中の動きを平面で示す
+  // ==========================================================
+  const P = {
+    W: 356,       // viewBox幅
+    PAD: 10,      // パネル左右余白
+    HEAD: 20,     // パネル見出し高さ
+    BODY: 66,     // 経路エリアの高さ
+    TRAIN: 34,    // 列車エリアの高さ(ホーム階のみ)
+    GAP: 40,      // パネル間(EV接続矢印)
+  };
+
+  function renderPlan(fac, guide) {
+    const floors = fac?.floors;
+    if (!floors || !floors.length || !guide?.steps?.length) return null;
+    const floorOf = new Map(floors.map((f) => [f.id, f]));
+
+    // 乗車側/到着側の号車ステップ
+    let carStep = null, destCar = null, sawEv = false;
+    for (const st of guide.steps) {
+      if (st.type === "elevator") sawEv = true;
+      if (st.type === "car") {
+        if (!sawEv && !carStep) carStep = st;
+        else if (sawEv) destCar = st;
+      }
+    }
+
+    // 訪れる階を順に組み立てる。各階に置く要素(EV/改札/経路点)を集める
+    const panels = []; // {floor, items:[], route:[{x,d}], hasTrainTop?, hasTrainBottom?}
+    const panelByFloor = new Map();
+    const getPanel = (fid) => {
+      if (panelByFloor.has(fid)) return panelByFloor.get(fid);
+      const p = { floor: floorOf.get(fid), items: [], route: [], train: null };
+      panels.push(p); panelByFloor.set(fid, p);
+      return p;
+    };
+
+    let evNo = 0, pendingWalk = null, curPanel = null, curPt = null;
+    const connectors = []; // {fromPanel, toPanel, x, label, no}
+    for (const st of guide.steps) {
+      if (st.type === "walk") { pendingWalk = st; continue; }
+      if (st.type === "gate") {
+        if (!curPanel) continue;
+        const pt = { x: st.x ?? (curPt?.x ?? 0.4), d: st.d ?? 0.45 };
+        if (pendingWalk?.path) for (const w of pendingWalk.path) curPanel.route.push({ x: w.x, d: w.d ?? 0.5 });
+        pendingWalk = null;
+        curPanel.route.push(pt);
+        curPanel.items.push({ kind: "gate", ...pt, label: st.name });
+        curPt = pt;
+        continue;
+      }
+      if (st.type !== "elevator") continue;
+      evNo++;
+      const fromP = getPanel(st.fromFloor);
+      // 乗車ホーム: 列車と乗車位置から経路開始
+      if (evNo === 1) {
+        const cars = carStep?.cars || 10;
+        let recCar = Number.isFinite(carStep?.carNo) ? carStep.carNo : null;
+        if (!recCar && Number.isFinite(st.atCar)) recCar = st.atCar;
+        let pos = recCar ? (recCar - 0.5) / cars : 0.5;
+        if (!recCar && carStep?.car) {
+          if (/前|先頭/.test(carStep.car)) pos = 0.08;
+          else if (/後/.test(carStep.car)) pos = 0.92;
+        }
+        fromP.train = { cars, recCar, pos, text: carStep?.car || null, unknown: !recCar && !Number.isFinite(st.atCar) };
+        fromP.route.push({ x: pos, d: 1.15 }); // 列車位置から
+      } else if (curPanel === fromP && curPt) {
+        // 直前の位置から
+      }
+      const evPt = { x: st.x ?? 0.3 + evNo * 0.15, d: 0.3 };
+      if (pendingWalk?.path && curPanel === fromP) {
+        for (const w of pendingWalk.path) fromP.route.push({ x: w.x, d: w.d ?? 0.5 });
+      }
+      pendingWalk = null;
+      fromP.route.push(evPt);
+      fromP.items.push({ kind: "ev", ...evPt, no: evNo, label: st.name });
+      const toP = getPanel(st.toFloor);
+      toP.items.push({ kind: "ev", ...evPt, no: evNo, label: st.name, arrived: true });
+      toP.route.push(evPt);
+      connectors.push({ from: fromP, to: toP, x: evPt.x, no: evNo,
+        label: `${st.name || "EV"}で ${floorOf.get(st.fromFloor)?.level || st.fromFloor} → ${floorOf.get(st.toFloor)?.level || st.toFloor}` });
+      curPanel = toP;
+      curPt = evPt;
+    }
+    // 到着ホームの列車
+    if (destCar && curPanel && curPt) {
+      const cars = destCar.cars || 10;
+      const idx = Math.min(cars, Math.max(1, Math.round(curPt.x * cars + 0.5)));
+      curPanel.train = { cars, recCar: idx, pos: (idx - 0.5) / cars, text: destCar.car || "EV最寄り車両", unknown: true, dest: true };
+      curPanel.route.push({ x: (idx - 0.5) / cars, d: 1.15 });
+    } else if (pendingWalk && curPanel && curPt) {
+      const endX = curPt.x < 0.5 ? 0.85 : 0.15;
+      if (pendingWalk.path) for (const w of pendingWalk.path) curPanel.route.push({ x: w.x, d: w.d ?? 0.5 });
+      curPanel.route.push({ x: endX, d: 0.5 });
+    }
+
+    // ---- 描画 ----
+    const IX = (x) => P.PAD + 8 + x * (P.W - 2 * (P.PAD + 8));
+    const parts = [];
+    let y = 6;
+    const panelTop = new Map(), panelBottom = new Map();
+    for (const p of panels) {
+      const hasTrain = !!p.train;
+      const h = P.HEAD + P.BODY + (hasTrain ? P.TRAIN : 0) + 10;
+      panelTop.set(p, y); panelBottom.set(p, y + h);
+      const f = p.floor || {};
+      parts.push(`<rect x="${P.PAD}" y="${y}" width="${P.W - 2 * P.PAD}" height="${h}" rx="10" class="pl-panel"/>
+        <text x="${P.PAD + 10}" y="${y + 15}" class="pl-title">${esc(f.level || f.id || "")} ${esc(f.label || "")}</text>
+        <text x="${P.W - P.PAD - 8}" y="${y + 15}" text-anchor="end" class="pl-compass">←西 ・ 東→</text>`);
+      const DY0 = y + P.HEAD, DH = P.BODY;
+      const PY = (d) => DY0 + Math.min(1, Math.max(0, d)) * DH;
+      const trainY = DY0 + DH + 6;
+
+      // トイレ
+      if (f.toilet) {
+        parts.push(`<circle cx="${IX(0.96)}" cy="${DY0 + 8}" r="8" class="sm-toilet"/>
+          <text x="${IX(0.96)}" y="${DY0 + 11}" text-anchor="middle" class="sm-toilet-icon">🚻</text>
+          <text x="${IX(0.96) + 6}" y="${DY0 + 24}" text-anchor="end" class="sm-toilet-label">${esc(f.toilet)}</text>`);
+      }
+      // 経路(ドット)
+      if (p.route.length >= 2) {
+        const pts = p.route.map((r) => ({ x: IX(r.x), y: r.d > 1 ? trainY - 4 : PY(r.d) }));
+        const d = pts.map((q, i) => `${i ? "L" : "M"}${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" ");
+        parts.push(`<path d="${d}" class="sm-walk" marker-end="url(#smWalkArrow)"/>`);
+      }
+      // アイテム(EV・改札)
+      for (const it of p.items) {
+        const ix = IX(it.x), iy = PY(it.d);
+        if (it.kind === "ev") {
+          parts.push(`<rect x="${ix - 11}" y="${iy - 11}" width="22" height="22" rx="4" class="pl-ev"/>
+            <text x="${ix}" y="${iy + 3.5}" text-anchor="middle" class="pl-ev-label">EV</text>
+            <circle cx="${ix - 12}" cy="${iy - 12}" r="8.5" class="sm-order"/>
+            <text x="${ix - 12}" y="${iy - 9}" text-anchor="middle" class="sm-order-num">${it.no}</text>
+            ${it.label ? `<text x="${ix}" y="${iy + 22}" text-anchor="middle" class="sm-ev-name">${esc(it.label)}</text>` : ""}`);
+        } else if (it.kind === "gate") {
+          parts.push(`<rect x="${ix - 6}" y="${iy - 8}" width="12" height="15" rx="2.5" class="sm-gate"/>
+            <text x="${ix}" y="${iy + 3}" text-anchor="middle" class="pl-gate-icon">🚪</text>
+            <text x="${ix}" y="${iy - 12}" text-anchor="middle" class="sm-gate-label">${esc(it.label || "改札")}</text>`);
+        }
+      }
+      // 列車
+      if (hasTrain) {
+        const t = p.train;
+        const tx0 = IX(0.02), tw = IX(0.98) - tx0, cw = tw / t.cars, th = 16;
+        for (let i = 1; i <= t.cars; i++) {
+          const rec = t.recCar === i;
+          parts.push(`<rect x="${tx0 + cw * (i - 1) + 1}" y="${trainY}" width="${cw - 2}" height="${th}" rx="3" class="sm-car${rec ? " sm-car-rec" : ""}"/>
+            <text x="${tx0 + cw * (i - 0.5)}" y="${trainY + th / 2 + 3}" text-anchor="middle" class="sm-car-num${rec ? " sm-car-num-rec" : ""}">${i}</text>`);
+        }
+        const bx = tx0 + tw * t.pos;
+        parts.push(`<circle cx="${bx}" cy="${trainY - 9}" r="8" class="sm-baby"/>
+          <text x="${bx}" y="${trainY - 5.5}" text-anchor="middle" class="sm-baby-icon">👶</text>`);
+        if (t.text) parts.push(`<text x="${Math.min(bx + 11, IX(0.7))}" y="${trainY - 6}" class="sm-car-text">${esc(t.text)}${t.unknown ? "(号車未確認)" : ""}</text>`);
+      }
+      y += h + P.GAP;
+    }
+    // パネル間のEV接続矢印
+    for (const c of connectors) {
+      const x = IX(c.x);
+      const y1 = panelBottom.get(c.from), y2 = panelTop.get(c.to);
+      if (y1 == null || y2 == null || y2 <= y1) continue;
+      const anchorEnd = x > P.W * 0.5;
+      parts.push(`<line x1="${x}" y1="${y1 + 3}" x2="${x}" y2="${y2 - 4}" class="pl-connect" marker-end="url(#smArrow)"/>
+        <text x="${anchorEnd ? x - 8 : x + 8}" y="${(y1 + y2) / 2 + 3}"${anchorEnd ? ' text-anchor="end"' : ""} class="pl-connect-label">🛗${c.no} ${esc(c.label)}</text>`);
+    }
+
+    const totalH = y - P.GAP + 8;
+    return `<svg viewBox="0 0 ${P.W} ${totalH}" xmlns="http://www.w3.org/2000/svg" class="sm-svg" role="img" aria-label="フロア別の乗換導線図">
+      <defs>
+        <marker id="smArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="sm-arrowhead"/>
+        </marker>
+        <marker id="smWalkArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="sm-walk-arrowhead"/>
+        </marker>
+      </defs>
+      ${parts.join("\n")}
+    </svg>`;
+  }
+
+  return { render, renderPlan };
 })();

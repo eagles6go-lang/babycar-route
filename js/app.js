@@ -354,12 +354,18 @@
         }
         return `<li><span class="step-no">🚶</span><span>${esc(st.note || "移動")}</span></li>`;
       }).join("");
-      const svg = (typeof StationMap !== "undefined" && StationMap.render(f, g)) || "";
+      const plan = (typeof StationMap !== "undefined" && StationMap.renderPlan && StationMap.renderPlan(f, g)) || "";
+      const iso = (typeof StationMap !== "undefined" && StationMap.render(f, g)) || "";
+      const hasMap = !!(plan || iso);
       return `<div class="guide-block${hit ? " guide-hit" : ""}" data-guide="${gi}">
         <div class="guide-title">${hit ? '<span class="hit-badge">このルートの乗換</span>' : ""}${esc(g.from)} → ${esc(g.to)}</div>
         <ul class="guide-steps">${steps}</ul>
-        <div class="map-area">${svg}</div>
-        ${f.floors?.length ? `<button type="button" class="secondary-btn btn-3d" data-guide="${gi}">🧊 3Dで見る(指で回転)</button>` : ""}
+        ${hasMap ? `<div class="map-tabs">
+          <button type="button" class="map-tab on" data-mode="plan" data-guide="${gi}">🗺 フロア図</button>
+          <button type="button" class="map-tab" data-mode="iso" data-guide="${gi}">📐 断面図</button>
+          <button type="button" class="map-tab" data-mode="3d" data-guide="${gi}">🧊 3D(回転)</button>
+        </div>` : ""}
+        <div class="map-area">${plan || iso}</div>
       </div>`;
     };
     let guidesHtml = "";
@@ -423,28 +429,29 @@
     $("btn-add-review").addEventListener("click", addReview);
     $("btn-close-station").addEventListener("click", closeSheets);
 
-    // 3D表示切替
-    $("station-sheet-body").querySelectorAll(".btn-3d").forEach((btn) => {
+    // マップ表示切替(フロア図/断面図/3D)
+    $("station-sheet-body").querySelectorAll(".map-tab").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const block = btn.closest(".guide-block");
         const area = block.querySelector(".map-area");
         const guide = (f?.transferGuides || [])[Number(btn.dataset.guide)];
-        if (btn.dataset.mode === "3d") {
-          if (typeof Station3D !== "undefined") Station3D.disposeAll();
-          renderStationSheet();
-          return;
+        block.querySelectorAll(".map-tab").forEach((b) => b.classList.toggle("on", b === btn));
+        if (typeof Station3D !== "undefined") Station3D.disposeAll();
+        const mode = btn.dataset.mode;
+        if (mode === "plan") {
+          area.innerHTML = (StationMap.renderPlan && StationMap.renderPlan(f, guide)) || StationMap.render(f, guide) || "";
+        } else if (mode === "iso") {
+          area.innerHTML = StationMap.render(f, guide) || "";
+        } else {
+          btn.disabled = true;
+          try {
+            area.innerHTML = "";
+            await Station3D.show(area, f, guide);
+          } catch (e) {
+            area.innerHTML = `<p class="hint">3D表示に失敗しました(${esc(e.message)})。フロア図をご利用ください。</p>`;
+          }
+          btn.disabled = false;
         }
-        btn.disabled = true;
-        btn.textContent = "3Dを読み込み中…";
-        try {
-          area.innerHTML = "";
-          await Station3D.show(area, f, guide);
-          btn.dataset.mode = "3d";
-          btn.textContent = "📄 2Dの図に戻す";
-        } catch (e) {
-          area.innerHTML = `<p class="hint">3D表示に失敗しました(${esc(e.message)})。2D図をご利用ください。</p>`;
-        }
-        btn.disabled = false;
       });
     });
   }
