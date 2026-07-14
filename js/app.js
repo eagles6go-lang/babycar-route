@@ -52,7 +52,7 @@
   // ---------- データ読み込み ----------
   async function boot() {
     try {
-      const DATA_V = "8";
+      const DATA_V = "9";
       const [network, walks, fac] = await Promise.all([
         fetch(`data/network.json?v=${DATA_V}`).then((r) => r.json()),
         fetch(`data/walk_transfers.json?v=${DATA_V}`).then((r) => r.json()),
@@ -297,7 +297,11 @@
         }
         if (st.type === "elevator") {
           evNo++;
-          return `<li><span class="step-no ev">${evNo}</span><span>🛗 <b>${esc(st.fromFloor)} → ${esc(st.toFloor)}</b> ${esc(st.name || "エレベーター")}で移動</span></li>`;
+          const lv = (id) => {
+            const fl = (f?.floors || []).find((x) => x.id === id);
+            return fl?.level || id;
+          };
+          return `<li><span class="step-no ev">${evNo}</span><span>🛗 <b>${esc(lv(st.fromFloor))} → ${esc(lv(st.toFloor))}</b> ${esc(st.name || "エレベーター")}で移動</span></li>`;
         }
         return `<li><span class="step-no">🚶</span><span>${esc(st.note || "移動")}</span></li>`;
       }).join("");

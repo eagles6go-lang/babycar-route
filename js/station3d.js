@@ -47,15 +47,14 @@ const Station3D = (() => {
     return sp;
   }
 
-  const FLOOR_W = 26, FLOOR_D = 11, FLOOR_T = 0.5, GAP = 4.2;
-  const TRAIN_W = 20, CARS_DEF = 10;
+  const FLOOR_W = 30, FLOOR_D = 11, FLOOR_T = 0.5, GAP = 4.6;
+  const CARS_DEF = 10;
 
-  function floorYpos(i) { return -i * GAP; }
-  function carX(car, cars) { return -TRAIN_W / 2 + (TRAIN_W / cars) * (car - 0.5); }
+  // フロアの水平配置(x,w は0-1)をワールド座標に変換
+  const wx = (rel) => -FLOOR_W / 2 + rel * FLOOR_W;
 
   function buildScene(fac, guide) {
     const floors = fac.floors;
-    const idx = new Map(floors.map((f, i) => [f.id, i]));
     const scene = new THREE.Scene();
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.75));
@@ -66,29 +65,48 @@ const Station3D = (() => {
     const slabMat = new THREE.MeshLambertMaterial({ color: 0xd7e3ee });
     const slabEdge = new THREE.LineBasicMaterial({ color: 0x90a4ae });
 
-    floors.forEach((f, i) => {
-      const y = floorYpos(i);
-      const geo = new THREE.BoxGeometry(FLOOR_W, FLOOR_T, FLOOR_D);
-      const mesh = new THREE.Mesh(geo, slabMat);
-      mesh.position.set(0, y, 0);
-      scene.add(mesh);
-      scene.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), slabEdge).translateY(y));
+    // 同じlevelが連続するフロアは同じ高さに並べる
+    const rowOf = new Map(), floorOf = new Map();
+    let row = -1, prevLevel = null;
+    for (const f of floors) {
+      const level = f.level || f.id;
+      if (level !== prevLevel) { row++; prevLevel = level; }
+      rowOf.set(f.id, row);
+      floorOf.set(f.id, f);
+    }
+    const rowYpos = (r) => -r * GAP;
 
-      const label = textSprite(`${f.id} ${f.label}`, { size: 15 });
-      label.position.set(-FLOOR_W / 2 - 1.2, y + 0.9, FLOOR_D / 2 + 0.6);
+    const labeledRows = new Set();
+    for (const f of floors) {
+      const r = rowOf.get(f.id);
+      const y = rowYpos(r);
+      const fw = (f.w ?? 1) * FLOOR_W;
+      const cx = wx(f.x ?? 0) + fw / 2;
+      const geo = new THREE.BoxGeometry(fw, FLOOR_T, FLOOR_D);
+      const mesh = new THREE.Mesh(geo, slabMat);
+      mesh.position.set(cx, y, 0);
+      scene.add(mesh);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), slabEdge);
+      edges.position.set(cx, y, 0);
+      scene.add(edges);
+
+      const labelText = labeledRows.has(r) ? f.label : `${f.level || f.id} ${f.label}`;
+      labeledRows.add(r);
+      const label = textSprite(labelText, { size: 14 });
+      label.position.set(cx - fw / 2, y + 0.9, FLOOR_D / 2 + 0.6);
       label.center.set(0, 0.5);
       scene.add(label);
 
       if (f.toilet) {
-        const t = textSprite("🚻", { size: 20, bg: "#e8f5e9" });
-        t.position.set(FLOOR_W / 2 - 1.5, y + 1.5, FLOOR_D / 2 - 1.5);
+        const t = textSprite("🚻", { size: 18, bg: "#e8f5e9" });
+        t.position.set(cx + fw / 2 - 1.5, y + 1.5, FLOOR_D / 2 - 1.5);
         scene.add(t);
-        const tl = textSprite(f.toilet, { size: 11, color: "#2e7d32" });
-        tl.position.set(FLOOR_W / 2 - 1.5, y + 0.55, FLOOR_D / 2 - 0.2);
+        const tl = textSprite(f.toilet, { size: 10, color: "#2e7d32" });
+        tl.position.set(cx + fw / 2 - 1.5, y + 0.5, FLOOR_D / 2 - 0.2);
         tl.center.set(1, 0.5);
         scene.add(tl);
       }
-    });
+    }
 
     // carステップと号車
     let carStep = null;
@@ -96,63 +114,112 @@ const Station3D = (() => {
     const cars = carStep?.cars || guide?.cars || CARS_DEF;
     const recCar = Number.isFinite(carStep?.carNo) ? carStep.carNo : null;
 
-    // EVシャフト
     const shaftMat = new THREE.MeshLambertMaterial({ color: 0xffd54f, transparent: true, opacity: 0.62 });
     const shaftRecMat = new THREE.MeshLambertMaterial({ color: 0xffb300, transparent: true, opacity: 0.75 });
-    let order = 0, fallbackX = -6, trainFloor = null, firstUnaligned = false;
+    const walkMat = new THREE.MeshLambertMaterial({ color: 0x26a69a });
+
+    // 徒歩の水平矢印(床上)
+    function addWalkArrow(r, x1, x2) {
+      if (Math.abs(x2 - x1) < 1.6) return;
+      const y = rowYpos(r) + FLOOR_T / 2 + 0.35;
+      const len = Math.abs(x2 - x1) - 1.2;
+      const dir = x2 > x1 ? 1 : -1;
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(len, 0.24, 0.6), walkMat);
+      bar.position.set((x1 + x2) / 2 - dir * 0.6, y, 0.4);
+      scene.add(bar);
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.75, 1.4, 12), walkMat);
+      cone.rotation.z = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
+      cone.position.set(x2 - dir * 0.6, y, 0.4);
+      scene.add(cone);
+      const w = textSprite("🚶", { size: 14 });
+      w.position.set((x1 + x2) / 2, y + 1.3, 0.6);
+      scene.add(w);
+    }
+
+    // ステップを順に追い、現在位置を更新しながら経路を組み立てる
+    let order = 0, fallbackRel = 0.25, curX = null, curRow = null;
+    let trainDrawn = false, firstUnaligned = false, pendingWalk = false;
+    const trainCarX = (pf, i) => {
+      const fw = (pf.w ?? 1) * FLOOR_W;
+      const x0 = wx(pf.x ?? 0) + 1.2;
+      const tw = fw - 2.4;
+      return x0 + (tw / cars) * (i - 0.5);
+    };
+
     for (const st of guide?.steps || []) {
+      if (st.type === "walk") { pendingWalk = true; continue; }
       if (st.type !== "elevator") continue;
       order++;
-      const a = idx.get(st.fromFloor), b = idx.get(st.toFloor);
+      const a = rowOf.get(st.fromFloor), b = rowOf.get(st.toFloor);
       if (a == null || b == null) continue;
-      if (trainFloor == null) trainFloor = a;
+
+      if (!trainDrawn) {
+        const pf = floorOf.get(st.fromFloor);
+        const y = rowYpos(a) + FLOOR_T / 2;
+        const fw = (pf.w ?? 1) * FLOOR_W;
+        const x0 = wx(pf.x ?? 0) + 1.2;
+        const tw = fw - 2.4;
+        const cw = tw / cars;
+        for (let i = 1; i <= cars; i++) {
+          const rec = recCar === i;
+          const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(cw * 0.86, 1.4, 2.1),
+            new THREE.MeshLambertMaterial({ color: rec ? 0xfb8c00 : 0xeceff1 }));
+          mesh.position.set(x0 + cw * (i - 0.5), y + 0.8, 2.7);
+          scene.add(mesh);
+          const num = textSprite(String(i), { size: 9, color: rec ? "#ffffff" : "#78909c", bold: rec });
+          num.position.set(x0 + cw * (i - 0.5), y + 0.85, 3.9);
+          scene.add(num);
+        }
+        if (carStep?.car || recCar) {
+          const bx = recCar ? trainCarX(pf, recCar)
+            : /前/.test(carStep?.car || "") ? trainCarX(pf, 2)
+            : /後/.test(carStep?.car || "") ? trainCarX(pf, cars - 1) : x0 + tw / 2;
+          const baby = textSprite(`👶 ${carStep?.car || recCar + "号車"}`, { size: 13, color: "#e65100", bg: "#fff3e0" });
+          baby.position.set(bx, y + 3.0, 2.7);
+          scene.add(baby);
+          curX = bx;
+        } else {
+          curX = x0 + tw / 2;
+        }
+        if (!carStep || (!Number.isFinite(st.atCar) && !recCar)) firstUnaligned = true;
+        if (firstUnaligned) {
+          const note = textSprite("※EV前の号車は未確認(メモ募集)", { size: 10, color: "#b26a00" });
+          note.position.set(wx(0.35), y + 4.6, 2.7);
+          scene.add(note);
+        }
+        curRow = a;
+        trainDrawn = true;
+      }
+
       let x;
-      const aligned = order === 1 && (Number.isFinite(st.atCar) || recCar);
-      if (aligned) x = carX(st.atCar || recCar, cars);
-      else { if (order === 1) firstUnaligned = true; x = fallbackX; fallbackX += 6; }
-      const yA = floorYpos(Math.min(a, b)), yB = floorYpos(Math.max(a, b));
+      const aligned = Number.isFinite(st.x);
+      if (aligned) x = wx(st.x);
+      else if (order === 1 && Number.isFinite(st.atCar)) x = curX;
+      else { x = wx(fallbackRel); fallbackRel += 0.2; if (fallbackRel > 0.92) fallbackRel = 0.2; }
+
+      if (curX != null && curRow != null) addWalkArrow(curRow, curX, x);
+      pendingWalk = false;
+
+      const yA = rowYpos(Math.min(a, b)), yB = rowYpos(Math.max(a, b));
       const h = yA - yB + FLOOR_T;
-      const geo = new THREE.BoxGeometry(2.4, h, 2.4);
-      const mesh = new THREE.Mesh(geo, aligned ? shaftRecMat : shaftMat);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(2.4, h, 2.4),
+        Number.isFinite(st.x) || (order === 1 && Number.isFinite(st.atCar)) ? shaftRecMat : shaftMat);
       mesh.position.set(x, (yA + yB) / 2, -1.5);
       scene.add(mesh);
 
       const badge = textSprite(String(order), { size: 15, color: "#ffffff", bg: "#26a69a" });
       badge.position.set(x - 1.8, yA + 1.6, -1.5);
       scene.add(badge);
-      const ev = textSprite(st.name || "EV", { size: 11, color: "#795548" });
+      const ev = textSprite(st.name || "EV", { size: 10, color: "#795548" });
       ev.position.set(x, yB - 0.9, -0.2);
       scene.add(ev);
-    }
 
-    // 号車つき列車(最初のEVの乗り場階)
-    if (trainFloor != null) {
-      const y = floorYpos(trainFloor) + FLOOR_T / 2;
-      const cw = TRAIN_W / cars;
-      for (let i = 1; i <= cars; i++) {
-        const rec = recCar === i;
-        const geo = new THREE.BoxGeometry(cw * 0.86, 1.5, 2.2);
-        const mat = new THREE.MeshLambertMaterial({ color: rec ? 0xfb8c00 : 0xeceff1 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(carX(i, cars), y + 0.85, 2.6);
-        scene.add(mesh);
-        const num = textSprite(String(i), { size: 10, color: rec ? "#ffffff" : "#78909c", bold: rec });
-        num.position.set(carX(i, cars), y + 0.9, 3.9);
-        scene.add(num);
-      }
-      if (carStep?.car || recCar) {
-        const bx = recCar ? carX(recCar, cars)
-          : /前/.test(carStep.car) ? carX(2, cars)
-          : /後/.test(carStep.car) ? carX(cars - 1, cars) : 0;
-        const baby = textSprite(`👶 ${carStep?.car || recCar + "号車"}`, { size: 14, color: "#e65100", bg: "#fff3e0" });
-        baby.position.set(bx, y + 3.1, 2.6);
-        scene.add(baby);
-      }
-      if (firstUnaligned) {
-        const note = textSprite("※EV前の号車は未確認(メモ募集)", { size: 11, color: "#b26a00" });
-        note.position.set(0, y + 4.6, 2.6);
-        scene.add(note);
-      }
+      curX = x;
+      curRow = b;
+    }
+    if (pendingWalk && curX != null && curRow != null) {
+      addWalkArrow(curRow, curX, curX < 0 ? wx(0.85) : wx(0.12));
     }
     return scene;
   }
@@ -166,8 +233,13 @@ const Station3D = (() => {
     container.appendChild(renderer.domElement);
 
     const scene = buildScene(fac, guide);
-    const n = fac.floors.length;
-    const midY = floorYpos((n - 1) / 2);
+    // 行数(同じlevelの連続は1行)からカメラ中心を決める
+    let rows = 0, prevLevel = null;
+    for (const f of fac.floors) {
+      const level = f.level || f.id;
+      if (level !== prevLevel) { rows++; prevLevel = level; }
+    }
+    const midY = -((rows - 1) / 2) * GAP;
     const camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 400);
     camera.position.set(26, midY + 16, 34);
 
