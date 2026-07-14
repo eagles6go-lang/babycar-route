@@ -52,7 +52,7 @@
   // ---------- データ読み込み ----------
   async function boot() {
     try {
-      const DATA_V = "7";
+      const DATA_V = "8";
       const [network, walks, fac] = await Promise.all([
         fetch(`data/network.json?v=${DATA_V}`).then((r) => r.json()),
         fetch(`data/walk_transfers.json?v=${DATA_V}`).then((r) => r.json()),
@@ -140,13 +140,28 @@
       `<div class="chip good">🚃 ${esc(h)}</div>`).join("");
   }
 
-  function renderRoutes(fromName, toName, routes) {
+  let lastResult = null; // {fromName, toName, viaName, routes}
+
+  function sortRoutes(routes, mode) {
+    const rs = [...routes];
+    if (mode === "fast") rs.sort((a, b) => a.est - b.est);
+    else if (mode === "cheap") rs.sort((a, b) => a.fare - b.fare);
+    else if (mode === "easy") rs.sort((a, b) => b.ease - a.ease || a.est - b.est);
+    return rs;
+  }
+
+  function renderRoutes(fromName, toName, viaName, routes, sortMode = "rec") {
+    lastResult = { fromName, toName, viaName, routes };
     const el = $("results");
     if (!routes.length) {
       el.innerHTML = `<p class="empty-note">ルートが見つかりませんでした。駅名を候補から選び直してください。</p>`;
       return;
     }
-    const cards = routes.map((r, idx) => {
+    const fastest = Math.min(...routes.map((r) => r.est));
+    const cheapest = Math.min(...routes.map((r) => r.fare));
+    const easiest = Math.max(...routes.map((r) => r.ease));
+    const sorted = sortRoutes(routes, sortMode);
+    const cards = sorted.map((r, idx) => {
       const tl = [];
       r.legs.forEach((leg, i) => {
         const first = leg.stations[0], last = leg.stations[leg.stations.length - 1];
@@ -163,13 +178,21 @@
         tl.push(stationRow(last.n, i === r.legs.length - 1 ? "goal" : "transfer"));
       });
 
-      const yahooUrl = `https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(fromName)}&to=${encodeURIComponent(toName)}`;
+      const yahooUrl = `https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(fromName)}&to=${encodeURIComponent(toName)}${viaName ? `&via=${encodeURIComponent(viaName)}` : ""}`;
+      const badges = [
+        r.est === fastest ? `<span class="best-badge">⚡最速</span>` : "",
+        r.fare === cheapest ? `<span class="best-badge">💰最安</span>` : "",
+        r.ease === easiest ? `<span class="best-badge">👶最ラク</span>` : "",
+      ].join("");
       return `<article class="route-card">
         <div class="route-head">
-          <span class="route-label">${esc(r.label)}</span>
-          <span class="route-time">約${r.est}分<small> (目安)</small></span>
+          <span class="route-label">${esc(r.label)}</span>${badges}
+          <span class="ease-badge ease-${r.easeGrade}">らくさ ${r.ease}</span>
+        </div>
+        <div class="route-stats">
+          <span class="route-time">約${r.est}分<small>(目安)</small></span>
           <span class="route-meta">乗換${r.transfers}回</span>
-          <span class="ease-badge ease-${r.easeScore}">楽さ ${r.easeScore}</span>
+          <span class="route-meta">約${r.fare.toLocaleString()}円<small>(概算)</small></span>
         </div>
         <div class="timeline">${tl.join("")}</div>
         <div class="route-links">
@@ -178,15 +201,24 @@
         </div>
       </article>`;
     });
-    el.innerHTML = `<h2 class="results-title">「${esc(fromName)} → ${esc(toName)}」のベビーカー向けルート</h2>` + cards.join("");
+    const sortChip = (mode, label) =>
+      `<button type="button" class="sort-chip${sortMode === mode ? " on" : ""}" data-sort="${mode}">${label}</button>`;
+    el.innerHTML = `
+      <h2 class="results-title">「${esc(fromName)}${viaName ? ` →(${esc(viaName)}経由)` : " "}→ ${esc(toName)}」のベビーカー向けルート</h2>
+      <div class="sort-bar">${sortChip("rec", "🌟おすすめ")}${sortChip("easy", "👶らく")}${sortChip("fast", "⚡はやい")}${sortChip("cheap", "💰やすい")}</div>
+      ${cards.join("")}`;
 
+    el.querySelectorAll(".sort-chip").forEach((b) => {
+      b.addEventListener("click", () =>
+        renderRoutes(fromName, toName, viaName, routes, b.dataset.sort));
+    });
     el.querySelectorAll("button[data-ekispert]").forEach((b) => {
       b.addEventListener("click", () => openEkispert(...b.dataset.ekispert.split("|")));
     });
     el.querySelectorAll("button[data-station]").forEach((b) => {
       b.addEventListener("click", () => openStationSheet(b.dataset.station));
     });
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (sortMode === "rec") el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function stationRow(name, kind) {
@@ -418,6 +450,7 @@
   function setup() {
     setupSuggest("from-input", "from-suggest");
     setupSuggest("to-input", "to-suggest");
+    setupSuggest("via-input", "via-suggest");
     setupSettings();
 
     $("btn-swap").addEventListener("click", () => {
@@ -447,14 +480,24 @@
     }
     $("from-input").value = fromName;
     $("to-input").value = toName;
+    let viaName = null;
+    if ($("via-input").value.trim()) {
+      viaName = resolveName($("via-input").value);
+      if (!viaName) {
+        $("results").innerHTML = `<p class="empty-note">経由駅が見つかりません。候補から選び直してください。</p>`;
+        return;
+      }
+      $("via-input").value = viaName;
+    }
     const useExpress = $("use-express").checked;
     localStorage.setItem("bcr_use_express", useExpress ? "1" : "");
-    const { error, routes } = Router.search(fromName, toName, { useExpress });
+    const { error, routes } = Router.search(fromName, toName,
+      { useExpress, viaNames: viaName ? [viaName] : [] });
     if (error) {
       $("results").innerHTML = `<p class="empty-note">${esc(error)}</p>`;
       return;
     }
-    renderRoutes(fromName, toName, routes);
+    renderRoutes(fromName, toName, viaName, routes);
   }
 
   function resolveName(input) {

@@ -12,6 +12,7 @@ const Router = (() => {
   let facilities = {};       // 駅名 -> 施設情報
   let reviewsProvider = null; // 駅名 -> 口コミ配列を返す関数
   let expressLines = new Set(); // 特急券が必要な路線コード
+  let lineCluster = new Map();  // 路線コード -> 事業者クラスタ(JRは一体扱い、運賃概算用)
 
   const WALK = 0;
 
@@ -60,6 +61,10 @@ const Router = (() => {
     // 特急券が必要な路線(オプションで利用可)
     const EXPRESS = /新幹線|成田エクスプレス|スカイライナー/;
     expressLines = new Set(net.lines.filter((l) => EXPRESS.test(l.n)).map((l) => l.c));
+    lineCluster = new Map(net.lines.map((l) => [
+      l.c,
+      (l.n.startsWith("JR") || /新幹線/.test(l.n)) ? "JR" : String(l.co ?? l.c),
+    ]));
     for (const line of net.lines) {
       const isExp = expressLines.has(line.c);
       for (let i = 0; i + 1 < line.s.length; i++) {
@@ -143,8 +148,9 @@ const Router = (() => {
     get size() { return this.a.length; }
   }
 
-  // (駅,路線)状態のダイクストラ。penalty=乗換基本ペナルティ(分)
-  function dijkstra(fromCode, toCode, penalty, boardCost, useExpress) {
+  // (駅,路線)状態のダイクストラ。cfg: {penalty, boardCost, useExpress, companyPenalty, avoidLines}
+  function dijkstra(fromCode, toCode, cfg) {
+    const { penalty, boardCost, useExpress, companyPenalty = 0, avoidLines = null } = cfg;
     const dist = new Map(), prev = new Map();
     const key = (s, l) => s * 100000 + l;
     const heap = new Heap();
@@ -164,6 +170,7 @@ const Router = (() => {
       for (const e of adj.get(cur.s) || []) {
         if (!useExpress && expressLines.has(e.line)) continue;
         let cost = e.time;
+        if (avoidLines && avoidLines.has(e.line)) cost *= 1.45; // 代替ルート探索用
         let transferred = false;
         if (e.line !== cur.l) {
           transferred = true;
@@ -173,6 +180,11 @@ const Router = (() => {
             cost += boardCost; // 出発駅での乗車
           } else {
             cost += penalty * transferFactor(st.n);
+            // 事業者が変わると運賃が上がるので「やすさ重視」ではペナルティ
+            if (companyPenalty && cur.l !== WALK &&
+                lineCluster.get(e.line) !== lineCluster.get(cur.l)) {
+              cost += companyPenalty;
+            }
           }
         }
         const nk = key(e.to, e.line);
@@ -210,16 +222,62 @@ const Router = (() => {
     return { legs, fromCode };
   }
 
+  // 複数区間(経由駅)のパスを結合する。境界で同一路線なら1本のレッグにまとめる
+  function stitch(paths) {
+    const legs = [];
+    for (const p of paths) {
+      for (const leg of p.legs) {
+        const last = legs[legs.length - 1];
+        if (last && last.line === leg.line) {
+          last.stations.push(...leg.stations.slice(1));
+          last.time += leg.time;
+        } else {
+          legs.push({ line: leg.line, stations: [...leg.stations], time: leg.time });
+        }
+      }
+    }
+    return { legs };
+  }
+
+  function legKm(stations) {
+    let km = 0;
+    for (let i = 0; i + 1 < stations.length; i++) km += haversineKm(stations[i], stations[i + 1]);
+    return km;
+  }
+
+  // 距離と事業者数からの運賃概算(±2〜3割の目安)
+  function estimateFare(legs) {
+    let fare = 0, segKm = 0, curCluster = null, expKm = 0;
+    const closeSeg = () => {
+      if (segKm > 0) fare += Math.max(150, Math.round((140 + 16 * segKm) / 10) * 10);
+      segKm = 0;
+    };
+    for (const leg of legs) {
+      if (leg.isWalk) continue;
+      const cl = lineCluster.get(leg.lineCode);
+      if (curCluster !== null && cl !== curCluster) closeSeg();
+      curCluster = cl;
+      segKm += leg.km;
+      if (expressLines.has(leg.lineCode)) expKm += leg.km;
+    }
+    closeSeg();
+    if (expKm > 0) fare += Math.round(Math.max(990, expKm * 10.5) / 10) * 10; // 特急料金の目安
+    return fare;
+  }
+
   function summarize(path) {
-    if (!path) return null;
+    if (!path || !path.legs.length) return null;
     const legs = path.legs.map((leg) => {
       const line = leg.line === WALK ? null : lineByCode.get(leg.line);
+      const stations = leg.stations.map((c) => stationByCode.get(c));
       return {
         isWalk: leg.line === WALK,
+        isExpress: expressLines.has(leg.line),
         lineCode: leg.line,
         lineName: line ? line.n : "徒歩",
         lineColor: line ? line.col : "#9aa0a6",
-        stations: leg.stations.map((c) => stationByCode.get(c)),
+        stations,
+        km: leg.line === WALK ? 0 : legKm(stations),
         stops: leg.stations.length - 1,
         time: Math.round(leg.time),
       };
@@ -228,25 +286,39 @@ const Router = (() => {
     const transfers = legs.length - 1;
     // 乗換1回あたりベビーカー移動 約7分を目安に加算
     const est = Math.round(rideTime + transfers * 7);
-    // 乗換駅リスト(発駅・着駅も施設表示対象)
     const points = [];
     legs.forEach((leg, i) => {
       if (i === 0) points.push({ station: leg.stations[0], kind: "start" });
       const last = leg.stations[leg.stations.length - 1];
       points.push({ station: last, kind: i === legs.length - 1 ? "goal" : "transfer" });
     });
-    // 楽さスコア: 乗換ポイントの施設充実度
-    let known = 0, good = 0, bad = 0;
+    // らくさスコア(0-100): 乗換の少なさ+乗換駅のバリアフリー情報
+    let ease = 100 - transfers * 12;
+    for (const leg of legs) if (leg.isWalk) ease -= 6;
     for (const p of points) {
+      if (p.kind !== "transfer") continue;
       const lv = easeLevel(p.station.n);
-      if (lv !== 0) known++;
-      if (lv > 0) good++;
-      if (lv < 0) bad++;
+      if (lv > 0) ease += 4;
+      else if (lv < 0) ease -= 18;
+      else ease -= 6;
     }
-    const easeScore = bad > 0 ? "C" : transfers === 0 ? "A" :
-      good >= Math.max(1, points.length - 1) ? "A" : good > 0 ? "B" : "B";
-    return { legs, transfers, est, points, easeScore,
+    ease = Math.max(5, Math.min(100, Math.round(ease)));
+    const easeGrade = ease >= 80 ? "A" : ease >= 60 ? "B" : "C";
+    const fare = estimateFare(legs);
+    return { legs, transfers, est, points, ease, easeGrade, fare,
+      easeScore: easeGrade,
       signature: legs.map((l) => `${l.lineCode}:${l.stations[l.stations.length - 1].c}`).join(">") };
+  }
+
+  // 経由駅対応: waypoints を順にダイクストラで結んで結合する
+  function routeVia(codes, cfg) {
+    const paths = [];
+    for (let i = 0; i + 1 < codes.length; i++) {
+      const p = dijkstra(codes[i], codes[i + 1], cfg);
+      if (!p) return null;
+      paths.push(p);
+    }
+    return stitch(paths);
   }
 
   function search(fromName, toName, opts = {}) {
@@ -256,24 +328,47 @@ const Router = (() => {
     if (from.c === to.c) return { error: "出発駅と到着駅が同じです", routes: [] };
     const useExpress = !!opts.useExpress;
 
+    const codes = [from.c];
+    for (const v of opts.viaNames || []) {
+      const st = stationsByName.get(v);
+      if (!st) return { error: `経由駅「${v}」が見つかりません`, routes: [] };
+      if (codes.includes(st.c)) continue;
+      codes.push(st.c);
+    }
+    codes.push(to.c);
+
     const configs = [
-      { label: "バランス", penalty: 8, boardCost: 3 },
-      { label: "乗換少なめ(楽さ優先)", penalty: 18, boardCost: 3 },
-      { label: "移動時間優先", penalty: 4, boardCost: 2 },
+      { label: "おすすめ", penalty: 8, boardCost: 3, useExpress },
+      { label: "乗換少なめ", penalty: 18, boardCost: 3, useExpress },
+      { label: "はやさ優先", penalty: 4, boardCost: 2, useExpress },
+      { label: "やすさ重視", penalty: 8, boardCost: 3, useExpress, companyPenalty: 7 },
     ];
     const routes = [];
     const seen = new Set();
-    for (const cfg of configs) {
-      const path = dijkstra(from.c, to.c, cfg.penalty, cfg.boardCost, useExpress);
+    const tryAdd = (path, label) => {
       const sum = summarize(path);
-      if (!sum) continue;
-      if (seen.has(sum.signature)) continue;
+      if (!sum || seen.has(sum.signature)) return false;
       seen.add(sum.signature);
-      sum.label = cfg.label;
+      sum.label = label;
       routes.push(sum);
+      return true;
+    };
+    for (const cfg of configs) {
+      tryAdd(routeVia(codes, cfg), cfg.label);
     }
-    // 楽さ優先(乗換少・スコア高)順に並べる
-    routes.sort((a, b) => (a.transfers - b.transfers) || (a.est - b.est));
+    // 候補が少ない場合は最初のルートの路線を避けた代替案を追加する
+    if (routes.length < 2 && routes.length > 0) {
+      const avoid = new Set(routes[0].legs.filter((l) => !l.isWalk).map((l) => l.lineCode));
+      const alt = routeVia(codes, { ...configs[0], avoidLines: avoid });
+      const sum = summarize(alt);
+      if (sum && !seen.has(sum.signature) && sum.est <= routes[0].est * 1.8 + 20) {
+        sum.label = "別路線";
+        seen.add(sum.signature);
+        routes.push(sum);
+      }
+    }
+    // おすすめ順: らくさと時間のバランス
+    routes.sort((a, b) => (a.est + (100 - a.ease) * 0.8) - (b.est + (100 - b.ease) * 0.8));
     return { error: null, routes };
   }
 

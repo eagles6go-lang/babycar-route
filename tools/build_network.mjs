@@ -65,7 +65,7 @@ async function worker() {
       .map((s) => s.code);
     if (seq.length < 2) continue;
     for (const c of seq) usedStationCodes.add(c);
-    outLines.push({ c: line.code, n: line.name, col: line.color || "#888888", s: seq });
+    outLines.push({ c: line.code, n: line.name, col: line.color || "#888888", co: line.company_code, s: seq });
     done++;
     if (done % 40 === 0) console.log(`  ${done}/${targets.length}`);
   }
