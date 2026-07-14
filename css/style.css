@@ -308,6 +308,10 @@ main { padding: 14px 12px 60px; max-width: 640px; margin: 0 auto; }
 .sm-walk-label { font-size: 10px; fill: #0d47a1; font-weight: 700; }
 .sm-mark { fill: #fff; stroke: #5c6bc0; stroke-width: 1.6; }
 .sm-mark-label { font-size: 7.5px; fill: #3f51b5; font-weight: 700; }
+.sm-gate { fill: #e8eaf6; stroke: #3f51b5; stroke-width: 1.4; }
+.sm-gate-icon { font-size: 7px; }
+.sm-gate-label { font-size: 8px; fill: #283593; font-weight: 800; }
+.step-gate { background: #3f51b5; }
 .sm-toilet { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1; }
 .sm-toilet-icon { font-size: 9px; }
 .sm-toilet-label { font-size: 8px; fill: #2e7d32; }

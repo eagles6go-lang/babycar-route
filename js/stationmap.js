@@ -77,12 +77,21 @@ const StationMap = (() => {
       <text x="${mid.x}" y="${mid.y - 6}" text-anchor="middle" class="sm-walk-label">🚶</text>`;
   }
 
-  // 床の上のマーカー(改札など)
+  // 床の上のマーカー(汎用)
   function markIcon(r, m) {
     const p = isoPt(r, m.x, m.d ?? 0.35);
     return `
       <circle cx="${p.x}" cy="${p.y}" r="3.2" class="sm-mark"/>
       <text x="${p.x}" y="${p.y - 5}" text-anchor="middle" class="sm-mark-label">${esc(m.label || "")}</text>`;
+  }
+
+  // 改札ゲートのマーカー
+  function gateIcon(r, gx, d, name) {
+    const p = { x: gx - SKEW * (d ?? 0.45), y: rowY(r) + DEPTH * (d ?? 0.45) };
+    return `
+      <rect x="${p.x - 4.5}" y="${p.y - 6}" width="9" height="10" rx="2" class="sm-gate"/>
+      <text x="${p.x}" y="${p.y + 1.5}" text-anchor="middle" class="sm-gate-icon">🚪</text>
+      <text x="${p.x}" y="${p.y - 9}" text-anchor="middle" class="sm-gate-label">${esc(name || "改札")}</text>`;
   }
 
   // 号車番号つき列車(ホームのスラブ内に描く)
@@ -153,20 +162,35 @@ const StationMap = (() => {
       }
     }
 
-    // carステップ
-    let carStep = null;
-    for (const st of guide?.steps || []) if (st.type === "car") { carStep = st; break; }
+    // carステップ: 最初のEVより前=乗車側、最後のEVより後=乗り継ぎ先(到着側)
+    let carStep = null, destCar = null, sawElevator = false;
+    for (const st of guide?.steps || []) {
+      if (st.type === "elevator") sawElevator = true;
+      if (st.type === "car") {
+        if (!sawElevator && !carStep) carStep = st;
+        else if (sawElevator) destCar = st;
+      }
+    }
     const cars = carStep?.cars || guide?.cars || 10;
     const recCar = Number.isFinite(carStep?.carNo) ? carStep.carNo : null;
 
     // ステップを順に追い、現在位置(x, 行)を更新しながら経路を描く
     let order = 0, fallbackX = px(0.25), curX = null, curRow = null;
-    let trainDrawn = false, firstUnaligned = false;
+    let trainDrawn = false, firstUnaligned = false, lastToFloor = null;
     let pendingWalk = null; // 直前のwalkステップ
     const later = [];
 
     for (const st of guide?.steps || []) {
       if (st.type === "walk") { pendingWalk = st; continue; }
+      if (st.type === "gate") {
+        if (curRow == null) continue;
+        const gx = Number.isFinite(st.x) ? px(st.x) : (curX ?? px(0.4));
+        parts.push(walkDots(curRow, curX, gx, pendingWalk?.path));
+        pendingWalk = null;
+        later.push(gateIcon(curRow, gx, st.d, st.name));
+        curX = gx;
+        continue;
+      }
       if (st.type !== "elevator") continue;
       order++;
       const a = rowOf.get(st.fromFloor), b = rowOf.get(st.toFloor);
@@ -201,11 +225,23 @@ const StationMap = (() => {
       later.push(shaft(evX, a, b, order, st.name));
       curX = evX;
       curRow = b;
+      lastToFloor = st.toFloor;
     }
     // 最後のEVの後に徒歩が残っている場合、目的方向へドット経路
     if (pendingWalk && curX != null && curRow != null) {
       const endX = curX < px(0.5) ? px(0.85) : px(0.12);
       parts.push(walkDots(curRow, curX, endX, pendingWalk.path));
+      curX = endX;
+    }
+    // 乗り継ぎ先ホームの列車(EVを降りた位置に近い号車に👶)
+    if (destCar && lastToFloor != null && curRow != null && curX != null) {
+      const df = floorOf.get(lastToFloor);
+      const carsD = destCar.cars || 10;
+      const x0 = px(df.x ?? 0) - SKEW + 6;
+      const tw = Math.max(80, (df.w ?? 1) * (W - SKEW) - 34);
+      const idx = Math.min(carsD, Math.max(1, Math.round((curX - x0) / (tw / carsD) + 0.5)));
+      const t = train(curRow, df, carsD, idx, destCar.car || "EV最寄り車両");
+      parts.push(t.svg);
     }
     parts.push(...later);
 

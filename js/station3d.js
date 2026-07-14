@@ -108,9 +108,15 @@ const Station3D = (() => {
       }
     }
 
-    // carステップと号車
-    let carStep = null;
-    for (const st of guide?.steps || []) if (st.type === "car") { carStep = st; break; }
+    // carステップ: 最初のEVより前=乗車側、最後のEVより後=乗り継ぎ先(到着側)
+    let carStep = null, destCar = null, sawEv = false;
+    for (const st of guide?.steps || []) {
+      if (st.type === "elevator") sawEv = true;
+      if (st.type === "car") {
+        if (!sawEv && !carStep) carStep = st;
+        else if (sawEv) destCar = st;
+      }
+    }
     const cars = carStep?.cars || guide?.cars || CARS_DEF;
     const recCar = Number.isFinite(carStep?.carNo) ? carStep.carNo : null;
 
@@ -161,8 +167,30 @@ const Station3D = (() => {
       return x0 + (tw / cars) * (i - 0.5);
     };
 
+    const gateMat = new THREE.MeshLambertMaterial({ color: 0x3f51b5 });
+    function addGate(r, x, d, name) {
+      const y = rowYpos(r) + FLOOR_T / 2;
+      const zz = ((d ?? 0.45) - 0.5) * FLOOR_D * 0.8;
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.4, 1.4), gateMat);
+      post.position.set(x, y + 0.7, zz);
+      scene.add(post);
+      const lb = textSprite(`🚪${name || "改札"}`, { size: 11, color: "#283593" });
+      lb.position.set(x, y + 2.3, zz + 0.4);
+      scene.add(lb);
+    }
+
+    let lastToFloor = null;
     for (const st of guide?.steps || []) {
       if (st.type === "walk") { pendingWalk = st; continue; }
+      if (st.type === "gate") {
+        if (curRow == null) continue;
+        const gx = Number.isFinite(st.x) ? wx(st.x) : (curX ?? 0);
+        addWalkDots(curRow, curX, gx, pendingWalk?.path);
+        pendingWalk = null;
+        addGate(curRow, gx, st.d, st.name);
+        curX = gx;
+        continue;
+      }
       if (st.type !== "elevator") continue;
       order++;
       const a = rowOf.get(st.fromFloor), b = rowOf.get(st.toFloor);
@@ -232,9 +260,34 @@ const Station3D = (() => {
 
       curX = x;
       curRow = b;
+      lastToFloor = st.toFloor;
     }
     if (pendingWalk && curX != null && curRow != null) {
-      addWalkDots(curRow, curX, curX < 0 ? wx(0.85) : wx(0.12), pendingWalk.path);
+      const endX = curX < 0 ? wx(0.85) : wx(0.12);
+      addWalkDots(curRow, curX, endX, pendingWalk.path);
+      curX = endX;
+    }
+    // 乗り継ぎ先ホームの列車(EVを降りた位置に近い号車に👶)
+    if (destCar && lastToFloor != null && curRow != null && curX != null) {
+      const df = floorOf.get(lastToFloor);
+      const carsD = destCar.cars || CARS_DEF;
+      const y = rowYpos(curRow) + FLOOR_T / 2;
+      const fw = (df.w ?? 1) * FLOOR_W;
+      const x0 = wx(df.x ?? 0) + 1.2;
+      const tw = fw - 2.4;
+      const cw = tw / carsD;
+      const idx = Math.min(carsD, Math.max(1, Math.round((curX - x0) / cw + 0.5)));
+      for (let i = 1; i <= carsD; i++) {
+        const rec = i === idx;
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(cw * 0.86, 1.4, 2.1),
+          new THREE.MeshLambertMaterial({ color: rec ? 0xfb8c00 : 0xeceff1 }));
+        mesh.position.set(x0 + cw * (i - 0.5), y + 0.8, 2.7);
+        scene.add(mesh);
+      }
+      const baby = textSprite(`👶 ${destCar.car || "EV最寄り車両"}`, { size: 13, color: "#e65100", bg: "#fff3e0" });
+      baby.position.set(x0 + cw * (idx - 0.5), y + 3.0, 2.7);
+      scene.add(baby);
     }
 
     // 床上マーカー(改札など)

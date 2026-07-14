@@ -65,7 +65,7 @@
 
   async function boot() {
     try {
-      const DATA_V = "11";
+      const DATA_V = "12";
       const [network, walks, fac] = await Promise.all([
         fetchJsonRetry(`data/network.json?v=${DATA_V}`),
         fetchJsonRetry(`data/walk_transfers.json?v=${DATA_V}`),
@@ -348,6 +348,9 @@
             return fl?.level || id;
           };
           return `<li><span class="step-no ev">${evNo}</span><span>🛗 <b>${esc(lv(st.fromFloor))} → ${esc(lv(st.toFloor))}</b> ${esc(st.name || "エレベーター")}で移動</span></li>`;
+        }
+        if (st.type === "gate") {
+          return `<li><span class="step-no step-gate">🚪</span><span><b>${esc(st.name || "改札")}</b>を通る${st.note ? ` — ${esc(st.note)}` : ""}</span></li>`;
         }
         return `<li><span class="step-no">🚶</span><span>${esc(st.note || "移動")}</span></li>`;
       }).join("");
