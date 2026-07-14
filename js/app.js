@@ -50,13 +50,26 @@
   }
 
   // ---------- データ読み込み ----------
+  async function fetchJsonRetry(url, tries = 3) {
+    for (let i = 0; ; i++) {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return await r.json();
+      } catch (e) {
+        if (i >= tries - 1) throw e;
+        await new Promise((res) => setTimeout(res, 800 * (i + 1)));
+      }
+    }
+  }
+
   async function boot() {
     try {
-      const DATA_V = "9";
+      const DATA_V = "11";
       const [network, walks, fac] = await Promise.all([
-        fetch(`data/network.json?v=${DATA_V}`).then((r) => r.json()),
-        fetch(`data/walk_transfers.json?v=${DATA_V}`).then((r) => r.json()),
-        fetch(`data/facilities.json?v=${DATA_V}`).then((r) => r.json()),
+        fetchJsonRetry(`data/network.json?v=${DATA_V}`),
+        fetchJsonRetry(`data/walk_transfers.json?v=${DATA_V}`),
+        fetchJsonRetry(`data/facilities.json?v=${DATA_V}`),
       ]);
       facilities = fac.stations || {};
       Router.init(network, walks, facilities, reviewsFor);
@@ -94,7 +107,7 @@
   }
 
   // ---------- 検索・結果描画 ----------
-  function facilityChips(name) {
+  function facilityChips(name, arrive = "", depart = "") {
     const f = facOf(name);
     const chips = [];
     if (f?.elevator?.available) chips.push(`<span class="chip good">🛗 EVあり</span>`);
@@ -107,7 +120,7 @@
       chips.push(`<span class="chip unknown">🚻 情報なし</span>`);
     }
     if (f?.caution) chips.push(`<span class="chip warn">⚠️ 注意あり</span>`);
-    if (f?.transferGuides?.length) chips.push(`<button type="button" class="chip nav" data-station="${esc(name)}">🧭 乗換ナビ</button>`);
+    if (f?.transferGuides?.length) chips.push(`<button type="button" class="chip nav" data-station="${esc(name)}" data-arrive="${esc(arrive)}" data-depart="${esc(depart)}">🧭 乗換ナビ</button>`);
     const rv = reviewsFor(name).length;
     if (rv) chips.push(`<span class="chip">💬 口コミ${rv}件</span>`);
     return `<div class="facility-chips">${chips.join("")}</div>`;
@@ -165,7 +178,8 @@
       const tl = [];
       r.legs.forEach((leg, i) => {
         const first = leg.stations[0], last = leg.stations[leg.stations.length - 1];
-        if (i === 0) tl.push(stationRow(first.n, "start"));
+        const nextLeg = r.legs[i + 1];
+        if (i === 0) tl.push(stationRow(first.n, "start", "", leg.lineName));
         if (leg.isWalk) {
           tl.push(`<div class="tl-leg"><div class="walk-leg tl-leginfo">🚶 徒歩連絡 約${leg.time}分(ベビーカーはやや余裕を)</div></div>`);
         } else {
@@ -175,7 +189,8 @@
               ${carRecommendHtml(first.n, leg.lineName)}</div>
           </div>`);
         }
-        tl.push(stationRow(last.n, i === r.legs.length - 1 ? "goal" : "transfer"));
+        tl.push(stationRow(last.n, i === r.legs.length - 1 ? "goal" : "transfer",
+          leg.isWalk ? "" : leg.lineName, nextLeg && !nextLeg.isWalk ? nextLeg.lineName : ""));
       });
 
       const yahooUrl = `https://transit.yahoo.co.jp/search/result?from=${encodeURIComponent(fromName)}&to=${encodeURIComponent(toName)}${viaName ? `&via=${encodeURIComponent(viaName)}` : ""}`;
@@ -216,21 +231,39 @@
       b.addEventListener("click", () => openEkispert(...b.dataset.ekispert.split("|")));
     });
     el.querySelectorAll("button[data-station]").forEach((b) => {
-      b.addEventListener("click", () => openStationSheet(b.dataset.station));
+      b.addEventListener("click", () =>
+        openStationSheet(b.dataset.station, { arrive: b.dataset.arrive || "", depart: b.dataset.depart || "" }));
     });
     if (sortMode === "rec") el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function stationRow(name, kind) {
+  function stationRow(name, kind, arrive = "", depart = "") {
     const kindLabel = { start: "出発", transfer: "乗換", goal: "到着" }[kind];
     return `<div class="tl-station">
       <div class="tl-dot"></div>
       <div class="tl-body">
-        <div class="tl-name"><button type="button" data-station="${esc(name)}">${esc(name)}</button>
+        <div class="tl-name"><button type="button" data-station="${esc(name)}" data-arrive="${esc(arrive)}" data-depart="${esc(depart)}">${esc(name)}</button>
           <span class="tl-kind kind-${kind}">${kindLabel}</span></div>
-        ${facilityChips(name)}
+        ${facilityChips(name, arrive, depart)}
       </div>
     </div>`;
+  }
+
+  // 路線名からマッチング用キーワードを取り出す(例: JR中央本線(東京～塩尻) -> [JR, 中央])
+  function lineTokens(lineName) {
+    if (!lineName) return [];
+    const n = nrm(lineName);
+    const t = [];
+    const m = n.match(/^(JR|東京メトロ|都営|東急|京王|小田急|京成|京急|西武|東武|相鉄|つくばエクスプレス|東京モノレール|多摩モノレール|ゆりかもめ|りんかい|横浜市営|名古屋市営|Osaka Metro|大阪メトロ|札幌市営|仙台市営|福岡市営|名鉄|近鉄|阪急|阪神|南海|京阪|西鉄)/);
+    if (m) t.push(m[1]);
+    let core = n.replace(m ? m[1] : "", "")
+      .replace(/(本線|線|ライン|ライナー).*$/, "");
+    if (core.length >= 2) t.push(core);
+    return t;
+  }
+  function guideMatchScore(guide, arrive, depart) {
+    const sc = (str, line) => lineTokens(line).filter((tok) => (str || "").includes(tok)).length;
+    return sc(guide.from, arrive) + sc(guide.to, depart);
   }
 
   async function openEkispert(from, to) {
@@ -253,10 +286,12 @@
 
   // ---------- 駅詳細シート ----------
   let currentStation = null;
+  let currentCtx = {};
   let pendingStars = { tc: 0, ez: 0 };
 
-  function openStationSheet(name) {
+  function openStationSheet(name, ctx = {}) {
     currentStation = name;
+    currentCtx = ctx;
     pendingStars = { tc: 0, ez: 0 };
     renderStationSheet();
     $("station-sheet").hidden = false;
@@ -289,7 +324,18 @@
       ${f.caution ? `<div class="fac-block fac-caution"><div class="fac-title">⚠️ 注意</div><div class="fac-note">${esc(f.caution)}</div></div>` : ""}
     ` : `<p class="empty-note">この駅の施設シードデータはまだありません。下の口コミ・メモで情報を追加できます。公式の駅構内図も確認してください。</p>`;
 
-    const guidesHtml = (f?.transferGuides || []).map((g, gi) => {
+    // ルート文脈(到着路線→出発路線)に合うガイドを先頭に出し、他は折りたたむ
+    const allGuides = (f?.transferGuides || []).map((g, gi) => ({ g, gi }));
+    let matched = [], others = allGuides;
+    if (currentCtx.arrive || currentCtx.depart) {
+      const scored = allGuides.map((x) => ({ ...x, sc: guideMatchScore(x.g, currentCtx.arrive, currentCtx.depart) }));
+      const best = Math.max(0, ...scored.map((x) => x.sc));
+      if (best > 0) {
+        matched = scored.filter((x) => x.sc === best);
+        others = scored.filter((x) => x.sc !== best);
+      }
+    }
+    const renderGuide = ({ g, gi }, hit) => {
       let evNo = 0;
       const steps = g.steps.map((st) => {
         if (st.type === "car") {
@@ -306,13 +352,22 @@
         return `<li><span class="step-no">🚶</span><span>${esc(st.note || "移動")}</span></li>`;
       }).join("");
       const svg = (typeof StationMap !== "undefined" && StationMap.render(f, g)) || "";
-      return `<div class="guide-block" data-guide="${gi}">
-        <div class="guide-title">${esc(g.from)} → ${esc(g.to)}</div>
+      return `<div class="guide-block${hit ? " guide-hit" : ""}" data-guide="${gi}">
+        <div class="guide-title">${hit ? '<span class="hit-badge">このルートの乗換</span>' : ""}${esc(g.from)} → ${esc(g.to)}</div>
         <ul class="guide-steps">${steps}</ul>
         <div class="map-area">${svg}</div>
         ${f.floors?.length ? `<button type="button" class="secondary-btn btn-3d" data-guide="${gi}">🧊 3Dで見る(指で回転)</button>` : ""}
       </div>`;
-    }).join("");
+    };
+    let guidesHtml = "";
+    if (matched.length) {
+      guidesHtml = matched.map((x) => renderGuide(x, true)).join("");
+      if (others.length) {
+        guidesHtml += `<details class="other-guides"><summary>他の乗換パターンを見る(${others.length}件)</summary>${others.map((x) => renderGuide(x, false)).join("")}</details>`;
+      }
+    } else {
+      guidesHtml = allGuides.map((x) => renderGuide(x, false)).join("");
+    }
     const navHtml = guidesHtml
       ? `<h3>🧭 乗換ナビ<span class="unverified">参考情報・要現地確認</span></h3>${guidesHtml}`
       : "";

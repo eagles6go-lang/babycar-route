@@ -57,14 +57,32 @@ const StationMap = (() => {
       ${name ? `<text x="${cx}" y="${yBot + 15}" text-anchor="middle" class="sm-ev-name">${esc(name)}</text>` : ""}`;
   }
 
-  // 床の上の徒歩移動(水平矢印)
-  function walkArrow(r, x1, x2, label) {
-    if (Math.abs(x2 - x1) < 14) return "";
+  // 床面上の点(x: 0-1 横位置, d: 0-1 奥行き位置)をアイソメ座標へ
+  function isoPt(r, xRel, d = 0.5) {
+    return { x: px(xRel) - SKEW * d, y: rowY(r) + DEPTH * d };
+  }
+
+  // 床の上の徒歩移動(Situm風のドット経路)。pathPts で曲がり角も表現できる
+  function walkDots(r, x1, x2, pathPts) {
+    const pts = [];
     const y = rowY(r) + DEPTH / 2 + 1;
-    const dir = x2 > x1 ? 1 : -1;
+    pts.push({ x: x1, y });
+    if (pathPts) for (const p of pathPts) pts.push(isoPt(r, p.x, p.d ?? 0.5));
+    pts.push({ x: x2, y });
+    if (!pathPts && Math.abs(x2 - x1) < 14) return "";
+    const d = pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+    const mid = pts[Math.floor(pts.length / 2)];
     return `
-      <line x1="${x1 + dir * 8}" y1="${y}" x2="${x2 - dir * 12}" y2="${y}" class="sm-walk" marker-end="url(#smWalkArrow)"/>
-      <text x="${(x1 + x2) / 2}" y="${y - 5}" text-anchor="middle" class="sm-walk-label">🚶${esc(label || "")}</text>`;
+      <path d="${d}" class="sm-walk" marker-end="url(#smWalkArrow)"/>
+      <text x="${mid.x}" y="${mid.y - 6}" text-anchor="middle" class="sm-walk-label">🚶</text>`;
+  }
+
+  // 床の上のマーカー(改札など)
+  function markIcon(r, m) {
+    const p = isoPt(r, m.x, m.d ?? 0.35);
+    return `
+      <circle cx="${p.x}" cy="${p.y}" r="3.2" class="sm-mark"/>
+      <text x="${p.x}" y="${p.y - 5}" text-anchor="middle" class="sm-mark-label">${esc(m.label || "")}</text>`;
   }
 
   // 号車番号つき列車(ホームのスラブ内に描く)
@@ -175,21 +193,26 @@ const StationMap = (() => {
       else if (order === 1 && Number.isFinite(st.atCar)) evX = curX;
       else { evX = fallbackX; fallbackX += 56; if (fallbackX > px(0.92)) fallbackX = px(0.2); }
 
-      // 降りた後(または乗車前)の水平移動を矢印で描く
+      // 降りた後(または乗車前)の水平移動をドット経路で描く
       if (curX != null && curRow != null) {
-        parts.push(walkArrow(curRow, curX, evX, pendingWalk ? "" : ""));
+        parts.push(walkDots(curRow, curX, evX, pendingWalk?.path));
       }
       pendingWalk = null;
       later.push(shaft(evX, a, b, order, st.name));
       curX = evX;
       curRow = b;
     }
-    // 最後のEVの後に徒歩が残っている場合、目的方向へ矢印
+    // 最後のEVの後に徒歩が残っている場合、目的方向へドット経路
     if (pendingWalk && curX != null && curRow != null) {
       const endX = curX < px(0.5) ? px(0.85) : px(0.12);
-      parts.push(walkArrow(curRow, curX, endX, ""));
+      parts.push(walkDots(curRow, curX, endX, pendingWalk.path));
     }
     parts.push(...later);
+
+    // 床上マーカー(改札など)
+    for (const f of floors) {
+      for (const m of f.marks || []) parts.push(markIcon(rowOf.get(f.id), m));
+    }
 
     // トイレは最前面
     for (const f of floors) {

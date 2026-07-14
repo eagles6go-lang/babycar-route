@@ -118,27 +118,42 @@ const Station3D = (() => {
     const shaftRecMat = new THREE.MeshLambertMaterial({ color: 0xffb300, transparent: true, opacity: 0.75 });
     const walkMat = new THREE.MeshLambertMaterial({ color: 0x26a69a });
 
-    // 徒歩の水平矢印(床上)
-    function addWalkArrow(r, x1, x2) {
-      if (Math.abs(x2 - x1) < 1.6) return;
-      const y = rowYpos(r) + FLOOR_T / 2 + 0.35;
-      const len = Math.abs(x2 - x1) - 1.2;
-      const dir = x2 > x1 ? 1 : -1;
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(len, 0.24, 0.6), walkMat);
-      bar.position.set((x1 + x2) / 2 - dir * 0.6, y, 0.4);
-      scene.add(bar);
-      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.75, 1.4, 12), walkMat);
-      cone.rotation.z = dir > 0 ? -Math.PI / 2 : Math.PI / 2;
-      cone.position.set(x2 - dir * 0.6, y, 0.4);
+    // 徒歩のドット経路(床上・Situm風)。pathPts({x, d})で曲がり角を表現
+    const dotGeo = new THREE.SphereGeometry(0.32, 10, 10);
+    function addWalkDots(r, x1, x2, pathPts) {
+      const y = rowYpos(r) + FLOOR_T / 2 + 0.4;
+      const zOf = (d) => ((d ?? 0.5) - 0.5) * FLOOR_D * 0.8;
+      const pts = [{ x: x1, z: 0 }];
+      if (pathPts) for (const p of pathPts) pts.push({ x: wx(p.x), z: zOf(p.d) });
+      pts.push({ x: x2, z: 0 });
+      if (!pathPts && Math.abs(x2 - x1) < 1.6) return;
+      // 線分に沿って一定間隔でドットを置く
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const a = pts[i], b = pts[i + 1];
+        const len = Math.hypot(b.x - a.x, b.z - a.z);
+        const n = Math.max(1, Math.round(len / 0.95));
+        for (let k = i === 0 ? 0 : 1; k <= n; k++) {
+          const t = k / n;
+          const dot = new THREE.Mesh(dotGeo, walkMat);
+          dot.position.set(a.x + (b.x - a.x) * t, y, a.z + (b.z - a.z) * t);
+          scene.add(dot);
+        }
+      }
+      const last = pts[pts.length - 1], prev = pts[pts.length - 2];
+      const ang = Math.atan2(last.x - prev.x, last.z - prev.z);
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.4, 12), walkMat);
+      cone.rotation.set(Math.PI / 2 * Math.cos(ang) * 0, 0, -Math.sign(last.x - prev.x) * Math.PI / 2);
+      cone.position.set(last.x, y, last.z);
       scene.add(cone);
+      const mid = pts[Math.floor(pts.length / 2)];
       const w = textSprite("🚶", { size: 14 });
-      w.position.set((x1 + x2) / 2, y + 1.3, 0.6);
+      w.position.set(mid.x, y + 1.3, mid.z + 0.3);
       scene.add(w);
     }
 
     // ステップを順に追い、現在位置を更新しながら経路を組み立てる
     let order = 0, fallbackRel = 0.25, curX = null, curRow = null;
-    let trainDrawn = false, firstUnaligned = false, pendingWalk = false;
+    let trainDrawn = false, firstUnaligned = false, pendingWalk = null;
     const trainCarX = (pf, i) => {
       const fw = (pf.w ?? 1) * FLOOR_W;
       const x0 = wx(pf.x ?? 0) + 1.2;
@@ -147,7 +162,7 @@ const Station3D = (() => {
     };
 
     for (const st of guide?.steps || []) {
-      if (st.type === "walk") { pendingWalk = true; continue; }
+      if (st.type === "walk") { pendingWalk = st; continue; }
       if (st.type !== "elevator") continue;
       order++;
       const a = rowOf.get(st.fromFloor), b = rowOf.get(st.toFloor);
@@ -198,8 +213,8 @@ const Station3D = (() => {
       else if (order === 1 && Number.isFinite(st.atCar)) x = curX;
       else { x = wx(fallbackRel); fallbackRel += 0.2; if (fallbackRel > 0.92) fallbackRel = 0.2; }
 
-      if (curX != null && curRow != null) addWalkArrow(curRow, curX, x);
-      pendingWalk = false;
+      if (curX != null && curRow != null) addWalkDots(curRow, curX, x, pendingWalk?.path);
+      pendingWalk = null;
 
       const yA = rowYpos(Math.min(a, b)), yB = rowYpos(Math.max(a, b));
       const h = yA - yB + FLOOR_T;
@@ -219,7 +234,25 @@ const Station3D = (() => {
       curRow = b;
     }
     if (pendingWalk && curX != null && curRow != null) {
-      addWalkArrow(curRow, curX, curX < 0 ? wx(0.85) : wx(0.12));
+      addWalkDots(curRow, curX, curX < 0 ? wx(0.85) : wx(0.12), pendingWalk.path);
+    }
+
+    // 床上マーカー(改札など)
+    const markMat = new THREE.MeshLambertMaterial({ color: 0x5c6bc0 });
+    for (const f of floors) {
+      const r = rowOf.get(f.id);
+      for (const m of f.marks || []) {
+        const y = rowYpos(r) + FLOOR_T / 2;
+        const zz = ((m.d ?? 0.35) - 0.5) * FLOOR_D * 0.8;
+        const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.9, 10), markMat);
+        pin.position.set(wx(m.x), y + 0.45, zz);
+        scene.add(pin);
+        if (m.label) {
+          const lb = textSprite(m.label, { size: 10, color: "#3f51b5" });
+          lb.position.set(wx(m.x), y + 1.7, zz);
+          scene.add(lb);
+        }
+      }
     }
     return scene;
   }
