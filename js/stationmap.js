@@ -383,6 +383,23 @@ const StationMap = (() => {
       const PY = (d) => DY0 + Math.min(1, Math.max(0, d)) * DH;
       const trainY = DY0 + DH + 6;
 
+      // 方面サイン(駅の案内板風)
+      for (const sg of f.signs || []) {
+        const sy = PY(sg.d ?? 0.15);
+        const label = sg.side === "left" ? `◀ ${sg.label}` : `${sg.label} ▶`;
+        const w = label.length * 7.6 + 12;
+        const sx = sg.side === "left" ? P.PAD + 3 : P.W - P.PAD - 3 - w;
+        parts.push(`<rect x="${sx}" y="${sy - 8}" width="${w}" height="15" rx="3" class="pl-sign"/>
+          <text x="${sx + w / 2}" y="${sy + 3}" text-anchor="middle" class="pl-sign-text">${esc(label)}</text>`);
+      }
+      // ランドマーク(百貨店・きっぷうりば等)
+      for (const m of f.marks || []) {
+        const mx = IX(m.x), my = PY(m.d ?? 0.8);
+        parts.push(`<circle cx="${mx}" cy="${my}" r="8.5" class="pl-landmark"/>
+          <text x="${mx}" y="${my + 3.5}" text-anchor="middle" class="pl-landmark-icon">${esc(m.icon || "📍")}</text>
+          <text x="${mx}" y="${my + 15}" text-anchor="middle" class="pl-landmark-label">${esc(m.label || "")}</text>`);
+      }
+
       // トイレ
       if (f.toilet) {
         parts.push(`<circle cx="${IX(0.96)}" cy="${DY0 + 8}" r="8" class="sm-toilet"/>

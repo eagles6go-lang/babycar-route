@@ -65,7 +65,7 @@
 
   async function boot() {
     try {
-      const DATA_V = "12";
+      const DATA_V = "14";
       const [network, walks, fac] = await Promise.all([
         fetchJsonRetry(`data/network.json?v=${DATA_V}`),
         fetchJsonRetry(`data/walk_transfers.json?v=${DATA_V}`),
