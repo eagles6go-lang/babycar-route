@@ -7,7 +7,15 @@
   const LS_EKISPERT = "bcr_ekispert_key";
 
   let facilities = {};
+  let trains = [];
   let ready = false;
+
+  // 路線名から車両設備(フリースペース等)情報を引く
+  function trainInfo(lineName) {
+    if (!lineName) return null;
+    const n = lineName;
+    return trains.find((t) => n.includes(t.match)) || null;
+  }
 
   // ---------- ユーティリティ ----------
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
@@ -65,13 +73,15 @@
 
   async function boot() {
     try {
-      const DATA_V = "14";
-      const [network, walks, fac] = await Promise.all([
+      const DATA_V = "15";
+      const [network, walks, fac, tr] = await Promise.all([
         fetchJsonRetry(`data/network.json?v=${DATA_V}`),
         fetchJsonRetry(`data/walk_transfers.json?v=${DATA_V}`),
         fetchJsonRetry(`data/facilities.json?v=${DATA_V}`),
+        fetchJsonRetry(`data/trains.json?v=${DATA_V}`),
       ]);
       facilities = fac.stations || {};
+      trains = tr.lines || [];
       Router.init(network, walks, facilities, reviewsFor);
       ready = true;
       $("load-status").textContent =
@@ -183,10 +193,12 @@
         if (leg.isWalk) {
           tl.push(`<div class="tl-leg"><div class="walk-leg tl-leginfo">🚶 徒歩連絡 約${leg.time}分(ベビーカーはやや余裕を)</div></div>`);
         } else {
+          const ti = trainInfo(leg.lineName);
           tl.push(`<div class="tl-leg">
             <div class="tl-legline" style="background:${esc(leg.lineColor)}"></div>
             <div class="tl-leginfo"><b>${esc(leg.lineName)}</b> <span class="leg-direction">${esc(Router.normName(last.n))}方面</span> ${leg.stops}駅 / 約${leg.time}分
-              ${carRecommendHtml(first.n, leg.lineName)}</div>
+              ${carRecommendHtml(first.n, leg.lineName)}
+              ${ti?.freeSpace ? `<div class="chip freespace">🚼 ベビーカースペース: ${esc(ti.freeSpace)}${ti.verified ? "" : " ※"}</div>` : ""}</div>
           </div>`);
         }
         tl.push(stationRow(last.n, i === r.legs.length - 1 ? "goal" : "transfer",
@@ -211,6 +223,7 @@
         </div>
         <div class="timeline">${tl.join("")}</div>
         <div class="route-links">
+          <button type="button" class="itinerary-btn" data-itinerary="${idx}">🚶 旅程ガイド(通しで見る)</button>
           <a href="${yahooUrl}" target="_blank" rel="noopener">🕐 Yahoo!乗換で時刻を見る</a>
           <button type="button" data-ekispert="${esc(fromName)}|${esc(toName)}">🚉 駅すぱあとで見る</button>
         </div>
@@ -226,6 +239,9 @@
     el.querySelectorAll(".sort-chip").forEach((b) => {
       b.addEventListener("click", () =>
         renderRoutes(fromName, toName, viaName, routes, b.dataset.sort));
+    });
+    el.querySelectorAll("[data-itinerary]").forEach((b) => {
+      b.addEventListener("click", () => openItinerary(sorted[Number(b.dataset.itinerary)], fromName, toName));
     });
     el.querySelectorAll("button[data-ekispert]").forEach((b) => {
       b.addEventListener("click", () => openEkispert(...b.dataset.ekispert.split("|")));
@@ -266,6 +282,42 @@
     return sc(guide.from, arrive) + sc(guide.to, depart);
   }
 
+  // 乗換ガイドのステップリストHTML(乗換ナビ・旅程ガイドで共用)
+  function guideStepsHtml(f, g) {
+    let evNo = 0;
+    return g.steps.map((st) => {
+      if (st.type === "car") {
+        return `<li><span class="step-no step-car">🚃</span><span><b>${esc(st.line || "")}</b> ${esc(st.direction || "")}は<b>${esc(st.car || "")}</b>へ${st.reason ? ` — ${esc(st.reason)}` : ""}</span></li>`;
+      }
+      if (st.type === "elevator") {
+        evNo++;
+        const lv = (id) => {
+          const fl = (f?.floors || []).find((x) => x.id === id);
+          return fl?.level || id;
+        };
+        return `<li><span class="step-no ev">${evNo}</span><span>🛗 <b>${esc(lv(st.fromFloor))} → ${esc(lv(st.toFloor))}</b> ${esc(st.name || "エレベーター")}で移動</span></li>`;
+      }
+      if (st.type === "gate") {
+        return `<li><span class="step-no step-gate">🚪</span><span><b>${esc(st.name || "改札")}</b>を通る${st.note ? ` — ${esc(st.note)}` : ""}</span></li>`;
+      }
+      return `<li><span class="step-no">🚶</span><span>${esc(st.note || "移動")}</span></li>`;
+    }).join("");
+  }
+
+  // ルート文脈に最も合うガイドを返す
+  function bestGuideFor(name, arrive, depart) {
+    const f = facOf(name);
+    const gs = f?.transferGuides || [];
+    if (!gs.length) return null;
+    if (!arrive && !depart) return null;
+    let best = null, bestSc = 0;
+    for (const g of gs) {
+      const sc = guideMatchScore(g, arrive, depart);
+      if (sc > bestSc) { bestSc = sc; best = g; }
+    }
+    return best;
+  }
+
   async function openEkispert(from, to) {
     const key = localStorage.getItem(LS_EKISPERT);
     if (!key) {
@@ -300,8 +352,83 @@
   function closeSheets() {
     if (typeof Station3D !== "undefined") Station3D.disposeAll();
     $("station-sheet").hidden = true;
+    $("itinerary-sheet").hidden = true;
     $("settings-sheet").hidden = true;
     document.body.style.overflow = "";
+  }
+
+  // ---------- 旅程ガイド(出発→乗換→到着の通し表示) ----------
+  function openItinerary(route, fromName, toName) {
+    if (!route) return;
+    const blocks = [];
+    blocks.push(`<h2>🚶 旅程ガイド</h2>
+      <p class="hint">${esc(fromName)} → ${esc(toName)} / 約${route.est}分・乗換${route.transfers}回・約${route.fare.toLocaleString()}円(概算) — 上から順に進めばOK</p>`);
+
+    route.legs.forEach((leg, i) => {
+      const first = leg.stations[0], last = leg.stations[leg.stations.length - 1];
+      const nextLeg = route.legs[i + 1];
+
+      if (i === 0) {
+        blocks.push(itStation("🏁 出発", first.n, "", leg.isWalk ? "" : leg.lineName));
+      }
+      if (leg.isWalk) {
+        blocks.push(`<div class="it-leg"><div class="tl-legline" style="background:#90a4ae"></div>
+          <div class="it-leg-body">🚶 徒歩連絡 約${leg.time}分(ベビーカーはやや余裕を)</div></div>`);
+      } else {
+        const ti = trainInfo(leg.lineName);
+        const hints = carHints(first.n, leg.lineName).slice(0, 2).map((h) => `<div class="chip good">🚃 ${esc(h)}</div>`).join("");
+        blocks.push(`<div class="it-leg"><div class="tl-legline" style="background:${esc(leg.lineColor)}"></div>
+          <div class="it-leg-body"><b>${esc(leg.lineName)}</b> <span class="leg-direction">${esc(nrm(last.n))}方面</span><br>
+          ${leg.stops}駅 / 約${leg.time}分
+          ${hints}
+          ${ti?.freeSpace ? `<div class="chip freespace">🚼 ベビーカースペース: ${esc(ti.freeSpace)}${ti.verified ? "" : " ※"}</div>` : ""}
+          ${ti?.note ? `<div class="hint">${esc(ti.note)}</div>` : ""}</div></div>`);
+      }
+
+      const isGoal = i === route.legs.length - 1;
+      const arrive = leg.isWalk ? "" : leg.lineName;
+      const depart = nextLeg && !nextLeg.isWalk ? nextLeg.lineName : "";
+      blocks.push(itStation(isGoal ? "🎯 到着" : "🔁 乗換", last.n, arrive, depart, !isGoal));
+    });
+
+    blocks.push(`<p class="hint">※印の設備情報は車種・編成による参考値です。現地の案内表示を優先してください。</p>
+      <button class="secondary-btn" id="btn-close-itinerary" style="width:100%;margin-top:8px;">閉じる</button>`);
+
+    $("itinerary-body").innerHTML = `<div class="sheet-content">${blocks.join("")}</div>`;
+    $("itinerary-body").querySelectorAll("[data-map-station]").forEach((b) => {
+      b.addEventListener("click", () => {
+        const ctx = { arrive: b.dataset.arrive || "", depart: b.dataset.depart || "" };
+        closeSheets();
+        openStationSheet(b.dataset.mapStation, ctx);
+      });
+    });
+    $("itinerary-body").querySelector("#btn-close-itinerary").addEventListener("click", closeSheets);
+    $("itinerary-sheet").hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+
+  // 旅程内の駅ブロック(乗換駅はガイドステップを埋め込む)
+  function itStation(kindLabel, name, arrive, depart, isTransfer = false) {
+    const f = facOf(name);
+    let inner = "";
+    if (isTransfer) {
+      const g = bestGuideFor(name, arrive, depart) || (f?.transferGuides || [])[0];
+      if (g) {
+        inner = `<div class="it-guide"><div class="hint">${esc(g.from)} → ${esc(g.to)}<span class="unverified">要現地確認</span></div>
+          <ul class="guide-steps">${guideStepsHtml(f, g)}</ul></div>`;
+      } else if (f?.elevator?.note) {
+        inner = `<div class="hint">🛗 ${esc(f.elevator.note)}</div>`;
+      }
+    } else if (f?.babyToilet?.location) {
+      inner = `<div class="hint">🚻 ${esc(f.babyToilet.location)}</div>`;
+    }
+    return `<div class="it-station">
+      <div class="it-station-head"><span class="tl-kind ${kindLabel.includes("出発") ? "kind-start" : kindLabel.includes("到着") ? "kind-goal" : "kind-transfer"}">${esc(kindLabel)}</span>
+        <b>${esc(name)}</b>
+        <button type="button" class="chip nav" data-map-station="${esc(name)}" data-arrive="${esc(arrive)}" data-depart="${esc(depart)}">🗺 駅マップ</button></div>
+      ${facilityChips(name, arrive, depart)}
+      ${inner}
+    </div>`;
   }
 
   function renderStationSheet() {
@@ -336,24 +463,7 @@
       }
     }
     const renderGuide = ({ g, gi }, hit) => {
-      let evNo = 0;
-      const steps = g.steps.map((st) => {
-        if (st.type === "car") {
-          return `<li><span class="step-no step-car">🚃</span><span><b>${esc(st.line || "")}</b> ${esc(st.direction || "")}は<b>${esc(st.car || "")}</b>へ${st.reason ? ` — ${esc(st.reason)}` : ""}</span></li>`;
-        }
-        if (st.type === "elevator") {
-          evNo++;
-          const lv = (id) => {
-            const fl = (f?.floors || []).find((x) => x.id === id);
-            return fl?.level || id;
-          };
-          return `<li><span class="step-no ev">${evNo}</span><span>🛗 <b>${esc(lv(st.fromFloor))} → ${esc(lv(st.toFloor))}</b> ${esc(st.name || "エレベーター")}で移動</span></li>`;
-        }
-        if (st.type === "gate") {
-          return `<li><span class="step-no step-gate">🚪</span><span><b>${esc(st.name || "改札")}</b>を通る${st.note ? ` — ${esc(st.note)}` : ""}</span></li>`;
-        }
-        return `<li><span class="step-no">🚶</span><span>${esc(st.note || "移動")}</span></li>`;
-      }).join("");
+      const steps = guideStepsHtml(f, g);
       const plan = (typeof StationMap !== "undefined" && StationMap.renderPlan && StationMap.renderPlan(f, g)) || "";
       const iso = (typeof StationMap !== "undefined" && StationMap.render(f, g)) || "";
       const hasMap = !!(plan || iso);
@@ -532,7 +642,7 @@
     $("btn-search").addEventListener("click", doSearch);
     $("to-input").addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
 
-    [$("station-sheet"), $("settings-sheet")].forEach((bd) => {
+    [$("station-sheet"), $("itinerary-sheet"), $("settings-sheet")].forEach((bd) => {
       bd.addEventListener("click", (ev) => { if (ev.target === bd) closeSheets(); });
     });
 

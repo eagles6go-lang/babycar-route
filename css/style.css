@@ -333,6 +333,17 @@ main { padding: 14px 12px 60px; max-width: 640px; margin: 0 auto; }
   font-size: .78rem; font-weight: 700; border-radius: 999px; padding: 6px 12px; cursor: pointer;
 }
 .map-tab.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* 旅程ガイド */
+.itinerary-btn { background: #e8f5e9 !important; color: #1b5e20 !important; font-weight: 700; }
+.it-station { background: #f8fafc; border-radius: 12px; padding: 10px 12px; margin: 8px 0; }
+.it-station-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+.it-station-head .tl-kind { position: static; vertical-align: baseline; }
+.it-leg { display: flex; gap: 10px; margin: 4px 0 4px 6px; }
+.it-leg .tl-legline { width: 6px; border-radius: 3px; flex-shrink: 0; }
+.it-leg-body { font-size: .88rem; padding: 6px 0; }
+.it-guide { margin-top: 6px; border-top: 1px dashed var(--line); padding-top: 6px; }
+.chip.freespace { background: #fce4ec; color: #ad1457; }
 .sm-toilet { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1; }
 .sm-toilet-icon { font-size: 9px; }
 .sm-toilet-label { font-size: 8px; fill: #2e7d32; }
