@@ -3,57 +3,98 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ベビカルート | ベビーカーにやさしい乗換案内</title>
-<meta name="description" content="エレベーター・おむつ替えトイレ・おすすめ号車がわかる、ベビーカー利用者向けの乗換ルート検索(日本全国の鉄道対応)">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👶</text></svg>">
-<link rel="stylesheet" href="css/style.css?v=15">
+<title>ベビーカーナビ | ベビーカーでのおでかけを、もっと安心に。</title>
+<meta name="description" content="エレベーター・トイレ・乗換え情報をまとめてご案内。ベビーカー利用者向けの移動経路検索(関東全域の鉄道)">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
+<link rel="stylesheet" href="css/style.css?v=16">
 </head>
 <body>
-<header class="app-header">
-  <h1>👶🛗 ベビカルート</h1>
-  <p class="tagline">ベビーカーにやさしい乗換案内(全国の鉄道・空港駅対応)</p>
-  <button id="btn-settings" class="icon-btn" aria-label="設定">⚙️</button>
-</header>
 
-<main>
-  <section class="search-card" id="search-card">
-    <div class="field">
-      <label for="from-input">出発</label>
-      <input id="from-input" type="text" placeholder="例: 池袋" autocomplete="off" enterkeyhint="next">
-      <div class="suggest" id="from-suggest"></div>
-    </div>
-    <button id="btn-swap" class="swap-btn" aria-label="出発と到着を入れ替え">⇅</button>
-    <div class="field">
-      <label for="to-input">到着</label>
-      <input id="to-input" type="text" placeholder="例: 横浜" autocomplete="off" enterkeyhint="search">
-      <div class="suggest" id="to-suggest"></div>
-    </div>
-    <div class="field">
-      <label for="via-input">経由駅(任意)</label>
-      <input id="via-input" type="text" placeholder="例: 東京 — この駅を通るルートにする" autocomplete="off" enterkeyhint="search">
-      <div class="suggest" id="via-suggest"></div>
-    </div>
-    <label class="express-opt"><input type="checkbox" id="use-express"> 🚄 新幹線・特急も使う(遠出のとき)</label>
-    <button id="btn-search" class="primary-btn">🔍 ベビーカーで楽なルートを探す</button>
-    <p class="loading-note" id="load-status">データ読み込み中…</p>
-  </section>
+<!-- ①検索(ホーム) -->
+<div class="view" id="view-home">
+  <header class="app-header">
+    <h1>🛒 ベビーカーナビ</h1>
+    <button id="btn-settings" class="icon-btn" aria-label="設定">⚙️</button>
+  </header>
+  <div class="hero">
+    <p class="hero-copy">ベビーカーでの<br>おでかけを、もっと安心に。</p>
+    <p class="hero-sub">エレベーター・トイレ・乗換え情報をまとめてご案内します。</p>
+  </div>
+  <main>
+    <section class="search-card" id="search-card">
+      <div class="field">
+        <label for="from-input">出発地</label>
+        <input id="from-input" type="text" placeholder="駅名を入力(例: 府中)" autocomplete="off" enterkeyhint="next">
+        <div class="suggest" id="from-suggest"></div>
+      </div>
+      <button id="btn-swap" class="swap-btn" aria-label="出発と到着を入れ替え">⇅</button>
+      <div class="field">
+        <label for="to-input">目的地</label>
+        <input id="to-input" type="text" placeholder="駅名を入力(例: 東京)" autocomplete="off" enterkeyhint="next">
+        <div class="suggest" id="to-suggest"></div>
+      </div>
+      <div class="field">
+        <label for="via-input">経由駅(任意)</label>
+        <input id="via-input" type="text" placeholder="この駅を通るルートにする" autocomplete="off" enterkeyhint="search">
+        <div class="suggest" id="via-suggest"></div>
+      </div>
 
-  <section id="results"></section>
+      <div class="mode-label">状況・条件 <span class="hint-inline">(タップで切替)</span></div>
+      <div class="mode-chips" id="mode-chips">
+        <button type="button" class="mode-chip" data-mode="sleeping">😴 子どもが寝ている</button>
+        <button type="button" class="mode-chip" data-mode="solo">🧍 大人1人で移動</button>
+        <button type="button" class="mode-chip" data-mode="luggage">🧳 荷物が多い</button>
+        <button type="button" class="mode-chip" data-mode="crowd">🚉 混雑を避けたい</button>
+        <button type="button" class="mode-chip" data-mode="diaper">🚼 おむつ交換したい</button>
+      </div>
+      <label class="express-opt"><input type="checkbox" id="use-express"> 🚄 新幹線・特急も使う(遠出のとき)</label>
+      <button id="btn-search" class="primary-btn">経路を検索する</button>
+      <p class="loading-note" id="load-status">データ読み込み中…</p>
+    </section>
 
-  <section class="info-card">
-    <h2>このアプリについて</h2>
-    <ul>
-      <li>所要時間・運賃は駅間距離からの<strong>概算(目安)</strong>です。正確な時刻・運賃は各ルートのリンク(Yahoo!乗換案内 / 駅すぱあと)で確認してください。</li>
-      <li>ルートは「乗換の少なさ」と「乗換駅のバリアフリー情報」を重視して選んでいます。日本全国の鉄道(空港アクセス駅含む)に対応。飛行機の便自体は検索できません。</li>
-      <li>「🚄新幹線・特急も使う」をオンにすると新幹線・成田エクスプレス等も候補になります(特急券が必要)。</li>
-      <li>エレベーター・トイレ情報は参考情報です。<strong>現地の駅構内図・公式情報を必ず確認</strong>してください。</li>
-      <li>駅の口コミ・メモはこの端末(ブラウザ)にのみ保存されます。設定からエクスポートできます。</li>
-    </ul>
-    <p class="attribution">駅・路線データ: <a href="https://github.com/Seo-4d696b75/station_database" target="_blank" rel="noopener">station_database</a> (CC BY 4.0)</p>
-  </section>
-</main>
+    <section id="shortcuts"></section>
+    <section id="results"></section>
 
-<!-- 駅詳細シート -->
+    <section class="info-card">
+      <h2>このアプリについて</h2>
+      <ul>
+        <li>関東全域の鉄道に対応。所要時間・運賃は距離からの<strong>目安</strong>です。正確な時刻・運賃はYahoo!乗換案内/駅すぱあとのリンクで確認してください。</li>
+        <li>駅の詳細情報(エレベーター・号車・トイレ)は駅ごとの<strong>対応レベル</strong>を表示します。参考情報は必ず現地・公式情報で確認してください。</li>
+        <li>履歴・お気に入り・プロフィールはこの端末にのみ保存されます(マイページから管理)。</li>
+      </ul>
+      <p class="attribution">駅・路線データ: <a href="https://github.com/Seo-4d696b75/station_database" target="_blank" rel="noopener">station_database</a> (CC BY 4.0) / 3D表示: three.js (MIT)</p>
+    </section>
+  </main>
+</div>
+
+<!-- ⑩マイページ -->
+<div class="view" id="view-my" hidden>
+  <header class="app-header"><h1>👤 マイページ</h1></header>
+  <main id="my-body"></main>
+</div>
+
+<!-- お気に入り -->
+<div class="view" id="view-fav" hidden>
+  <header class="app-header"><h1>♥ お気に入り</h1></header>
+  <main id="fav-body"></main>
+</div>
+
+<!-- 下部ナビ -->
+<nav class="bottom-nav">
+  <button class="nav-btn on" data-view="home">🔍<span>検索</span></button>
+  <button class="nav-btn" data-view="fav">♥<span>お気に入り</span></button>
+  <button class="nav-btn" data-view="my">👤<span>マイページ</span></button>
+</nav>
+
+<!-- ③経路詳細シート -->
+<div class="sheet-backdrop" id="detail-sheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true">
+    <div class="sheet-handle"></div>
+    <div id="detail-body"></div>
+  </div>
+</div>
+
+<!-- ④駅構内マップシート -->
 <div class="sheet-backdrop" id="station-sheet" hidden>
   <div class="sheet" role="dialog" aria-modal="true">
     <div class="sheet-handle"></div>
@@ -61,12 +102,9 @@
   </div>
 </div>
 
-<!-- 旅程ガイドシート -->
-<div class="sheet-backdrop" id="itinerary-sheet" hidden>
-  <div class="sheet" role="dialog" aria-modal="true">
-    <div class="sheet-handle"></div>
-    <div id="itinerary-body"></div>
-  </div>
+<!-- ⑨移動中(案内モード) -->
+<div class="walkthrough" id="walkthrough" hidden>
+  <div id="walkthrough-body"></div>
 </div>
 
 <!-- 設定シート -->
@@ -79,15 +117,13 @@
       <p class="hint">正確な時刻表リンクに使います(任意)。<a href="https://api-info.ekispert.com/form/free/" target="_blank" rel="noopener">フリープランの申込はこちら</a></p>
       <input type="text" id="ekispert-key" placeholder="アクセスキーを貼り付け">
       <button class="secondary-btn" id="btn-save-key">保存</button>
-      <h3>口コミ・メモのバックアップ</h3>
-      <p class="hint">口コミはこの端末にのみ保存されます。機種変更や共有時はエクスポートしてください。</p>
+      <h3>データのバックアップ</h3>
+      <p class="hint">履歴・お気に入り・プロフィール・口コミはこの端末にのみ保存されます。</p>
       <div class="btn-row">
         <button class="secondary-btn" id="btn-export">エクスポート</button>
         <button class="secondary-btn" id="btn-import">インポート</button>
         <input type="file" id="import-file" accept="application/json" hidden>
       </div>
-      <h3>データ出典</h3>
-      <p class="hint">駅・路線データ: station_database (CC BY 4.0)。バリアフリー情報はシードデータ+利用者の口コミで、正確性を保証するものではありません。</p>
       <button class="secondary-btn" id="btn-close-settings">閉じる</button>
     </div>
   </div>
@@ -95,9 +131,10 @@
 
 <script defer src="vendor/three.min.js"></script>
 <script defer src="vendor/OrbitControls.js"></script>
-<script defer src="js/router.js?v=15"></script>
-<script defer src="js/stationmap.js?v=15"></script>
-<script defer src="js/station3d.js?v=15"></script>
-<script defer src="js/app.js?v=15"></script>
+<script defer src="js/store.js?v=16"></script>
+<script defer src="js/router.js?v=16"></script>
+<script defer src="js/stationmap.js?v=16"></script>
+<script defer src="js/station3d.js?v=16"></script>
+<script defer src="js/app.js?v=16"></script>
 </body>
 </html>

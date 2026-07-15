@@ -337,11 +337,13 @@ const Router = (() => {
     }
     codes.push(to.c);
 
+    // pf: プロフィール/状況モードによる乗換ペナルティ補正(1=標準)
+    const pf = Math.max(0.5, Math.min(3, opts.penaltyFactor || 1));
     const configs = [
-      { label: "おすすめ", penalty: 8, boardCost: 3, useExpress },
-      { label: "乗換少なめ", penalty: 18, boardCost: 3, useExpress },
+      { label: "おすすめ", penalty: 8 * pf, boardCost: 3, useExpress },
+      { label: "乗換少なめ", penalty: 18 * pf, boardCost: 3, useExpress },
       { label: "はやさ優先", penalty: 4, boardCost: 2, useExpress },
-      { label: "やすさ重視", penalty: 8, boardCost: 3, useExpress, companyPenalty: 7 },
+      { label: "やすさ重視", penalty: 8 * pf, boardCost: 3, useExpress, companyPenalty: 7 },
     ];
     const routes = [];
     const seen = new Set();
