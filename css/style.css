@@ -458,6 +458,37 @@ main { padding: 14px 12px 90px; max-width: 640px; margin: 0 auto; }
 }
 .suggest .pref { color: #90a4ae; font-size: .72rem; }
 .suggest-head { font-size: .7rem; color: var(--sub); padding: 6px 12px 2px; font-weight: 700; }
+
+/* 経路カードの時刻レンジ */
+.route-timerange { font-size: 1.35rem; font-weight: 800; margin: 2px 0; }
+.tr-arrow { color: #b0bec5; font-size: 1rem; }
+.tr-dur { font-size: .95rem; font-weight: 700; color: var(--sub); }
+
+/* 詳細タイムライン */
+.tl2 { margin-top: 4px; }
+.tl2-row { display: grid; grid-template-columns: 46px 16px 1fr; column-gap: 8px; }
+.tl2-time { font-size: .82rem; color: var(--sub); padding-top: 2px; text-align: right; }
+.tl2-time.on { font-weight: 800; color: var(--ink); font-size: .95rem; }
+.tl2-node {
+  width: 14px; height: 14px; border-radius: 50%; background: #fff;
+  border: 3.5px solid var(--brand-dark); margin: 4px auto 0; z-index: 1;
+}
+.tl2-node.kind-start { border-color: #43a047; }
+.tl2-node.kind-transfer { border-color: #fb8c00; }
+.tl2-node.kind-goal { border-color: #e53935; }
+.tl2-line { width: 7px; border-radius: 3px; margin: 0 auto; min-height: 54px; }
+.tl2-line.walkline { background: none; border-left: 4px dotted #90a4ae; width: 0; border-radius: 0; }
+.tl2-body { padding: 0 0 12px; min-width: 0; }
+.tl2-body.seg { padding: 8px 0 8px; }
+.tl2-name { font-size: 1.02rem; margin-bottom: 2px; }
+.seg-line { font-size: .9rem; }
+.seg-meta { font-size: .78rem; color: var(--sub); margin: 1px 0 3px; }
+.tl2-wait {
+  background: #fff8e1; border-radius: 8px; padding: 6px 10px;
+  font-size: .82rem; font-weight: 700; color: #8d6e00; margin-top: 4px;
+}
+.tl2-steps { margin-top: 4px; }
+.tl2-steps summary { font-size: .82rem; color: #0d47a1; cursor: pointer; padding: 4px 0; }
 .sm-toilet { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1; }
 .sm-toilet-icon { font-size: 9px; }
 .sm-toilet-label { font-size: 8px; fill: #2e7d32; }

@@ -241,15 +241,17 @@
         `<span class="line-pill" style="border-color:${esc(l.lineColor)}">${esc(nrm(l.lineName))}</span>`).join("<span class='line-arrow'>›</span>");
       const transferNames = r.points.filter((p) => p.kind === "transfer").map((p) => nrm(p.station.n));
       const carHint = r.legs.filter((l) => !l.isWalk).map((l) => carHints(l.stations[0].n, l.lineName)[0]).find(Boolean);
+      const rt = routeTimes(r);
       return `<article class="route-card" data-ridx="${idx}">
         <div class="route-head">
           <span class="route-label">${esc(r.label)}</span>${badges}
           ${scoreBadge(r.ease)}
         </div>
+        <div class="route-timerange">${fmtTime(rt.start)} <span class="tr-arrow">→</span> ${fmtTime(rt.end)}
+          <span class="tr-dur">(${rt.total}分)</span><small class="hint-inline"> 今すぐ出発の目安</small></div>
         <div class="route-stats">
-          <span class="route-time">約${r.est}分<small>(目安)</small></span>
           <span class="route-meta">乗換${r.transfers}回</span>
-          <span class="route-meta">EV利用可 ${evUse}/${Math.max(1, r.transfers)}</span>
+          <span class="route-meta">🛗 EV情報あり ${evUse}/${Math.max(1, r.transfers)}駅</span>
           <span class="route-meta">約${r.fare.toLocaleString()}円<small>(概算)</small></span>
         </div>
         <div class="route-lines">${lineSummary}</div>
@@ -351,6 +353,34 @@
     }).join("");
   }
 
+  // ルートの通過目安時刻(今すぐ出発した場合)を算出する
+  function routeTimes(r) {
+    const start = new Date();
+    start.setSeconds(0, 0);
+    start.setMinutes(start.getMinutes() + 3); // 駅到着までの3分を見込む
+    let t = new Date(start);
+    const pts = [];
+    r.legs.forEach((leg, i) => {
+      const first = leg.stations[0], last = leg.stations[leg.stations.length - 1];
+      if (i === 0) pts.push({ time: new Date(t), kind: "start", name: first.n });
+      t = new Date(t.getTime() + leg.time * 60000);
+      const isGoal = i === r.legs.length - 1;
+      if (isGoal) {
+        pts.push({ time: new Date(t), kind: "goal", name: last.n });
+      } else {
+        const nextLeg = r.legs[i + 1];
+        const g = bestGuideFor(last.n, leg.isWalk ? "" : leg.lineName,
+          nextLeg && !nextLeg.isWalk ? nextLeg.lineName : "");
+        const bd = transferBreakdown(g);
+        pts.push({ time: new Date(t), kind: "transfer", name: last.n, wait: bd.total, bd });
+        t = new Date(t.getTime() + bd.total * 60000);
+      }
+    });
+    const total = Math.round((t - start) / 60000);
+    return { start, end: t, total, pts };
+  }
+  const fmtTime = (d) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+
   // ベビーカー向け乗換時間の内訳(FR-021/025)
   function transferBreakdown(guide) {
     if (!guide) return { total: 7, rows: [["標準の乗換余裕", 7]] };
@@ -435,31 +465,68 @@
     $("btn-close-detail").addEventListener("click", closeSheets);
   }
 
-  // タブ: 全体(旅程)
+  // タブ: 全体(時刻つき縦タイムライン)
   function detailAll(r) {
-    const out = [];
+    const rt = routeTimes(r);
+    const out = [`<p class="hint" style="margin:2px 0 8px;">時刻は「今すぐ出発した場合」の目安です(ベビーカー乗換時間込み)。実際の発車時刻は時刻リンクで確認してください。</p>`];
+    let p = 0; // rt.pts index
     r.legs.forEach((leg, i) => {
       const first = leg.stations[0], last = leg.stations[leg.stations.length - 1];
       const nextLeg = r.legs[i + 1];
-      if (i === 0) out.push(stationBlock("🏁 出発", first.n, "", leg.isWalk ? "" : leg.lineName, false));
+      if (i === 0) out.push(tlPoint(rt.pts[p++], "", leg.isWalk ? "" : leg.lineName));
+      // 区間
       if (leg.isWalk) {
-        out.push(`<div class="it-leg"><div class="tl-legline" style="background:#90a4ae"></div>
-          <div class="it-leg-body">🚶 徒歩連絡 約${leg.time}分</div></div>`);
+        out.push(`<div class="tl2-row">
+          <div class="tl2-time"></div>
+          <div class="tl2-line walkline"></div>
+          <div class="tl2-body seg">🚶 徒歩連絡 約${leg.time}分(ベビーカーはやや余裕を)</div>
+        </div>`);
       } else {
         const ti = trainInfo(leg.lineName);
         const hint = carHints(first.n, leg.lineName)[0];
-        out.push(`<div class="it-leg"><div class="tl-legline" style="background:${esc(leg.lineColor)}"></div>
-          <div class="it-leg-body"><b>${esc(leg.lineName)}</b> <span class="leg-direction">${esc(nrm(last.n))}方面</span><br>
-          ${leg.stops}駅 / 約${leg.time}分
-          ${hint ? `<div class="chip good">🚃 ${esc(hint)}</div>` : ""}
-          ${ti?.freeSpace ? `<div class="chip freespace">🚼 ${esc(ti.freeSpace)}${ti.verified ? "" : " ※"}</div>` : ""}
-          </div></div>`);
+        out.push(`<div class="tl2-row">
+          <div class="tl2-time"></div>
+          <div class="tl2-line" style="background:${esc(leg.lineColor)}"></div>
+          <div class="tl2-body seg">
+            <div class="seg-line"><b>${esc(leg.lineName)}</b> <span class="leg-direction">${esc(nrm(last.n))}方面</span></div>
+            <div class="seg-meta">${leg.stops}駅 ・ 約${leg.time}分</div>
+            ${hint ? `<div class="chip good">🚃 ${esc(hint)}</div>` : ""}
+            ${ti?.freeSpace ? `<div class="chip freespace">🚼 ${esc(ti.freeSpace)}${ti.verified ? "" : " ※"}</div>` : ""}
+          </div>
+        </div>`);
       }
-      const isGoal = i === r.legs.length - 1;
-      out.push(stationBlock(isGoal ? "🎯 到着" : "🔁 乗換", last.n,
-        leg.isWalk ? "" : leg.lineName, nextLeg && !nextLeg.isWalk ? nextLeg.lineName : "", !isGoal));
+      // 到着ポイント
+      out.push(tlPoint(rt.pts[p++], leg.isWalk ? "" : leg.lineName,
+        nextLeg && !nextLeg.isWalk ? nextLeg.lineName : ""));
     });
-    return out.join("");
+    return `<div class="tl2">${out.join("")}</div>`;
+  }
+
+  // タイムライン上の駅ポイント(出発/乗換/到着)
+  function tlPoint(pt, arrive, depart) {
+    if (!pt) return "";
+    const kindLabel = { start: "出発", transfer: "乗換", goal: "到着" }[pt.kind];
+    const f = facOf(pt.name);
+    let extra = "";
+    if (pt.kind === "transfer") {
+      const g = bestGuideFor(pt.name, arrive, depart);
+      extra = `<div class="tl2-wait">🛗 ベビーカー乗換 約${pt.wait}分
+        <span class="hint-inline">(${pt.bd.rows.map((x) => `${x[0].replace(/\(.*\)/, "")}${x[1]}分`).join("・")})</span></div>`;
+      if (g) extra += `<details class="tl2-steps"><summary>乗換手順を見る(${g.steps.length}ステップ)</summary>
+        <ul class="guide-steps">${guideStepsHtml(f, g)}</ul></details>`;
+    } else if (pt.kind === "goal" && f?.babyToilet?.location) {
+      extra = `<div class="hint">🚻 ${esc(f.babyToilet.location)}</div>`;
+    }
+    return `<div class="tl2-row">
+      <div class="tl2-time on">${fmtTime(pt.time)}</div>
+      <div class="tl2-node kind-${pt.kind}"></div>
+      <div class="tl2-body">
+        <div class="tl2-name"><b>${esc(nrm(pt.name))}</b>
+          <span class="tl-kind kind-${pt.kind}">${kindLabel}</span></div>
+        ${facilityChips(pt.name, arrive, depart)}
+        ${extra}
+      </div>
+    </div>`;
   }
 
   function stationBlock(kindLabel, name, arrive, depart, isTransfer) {
