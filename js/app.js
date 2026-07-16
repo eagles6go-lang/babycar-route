@@ -242,6 +242,7 @@
       const transferNames = r.points.filter((p) => p.kind === "transfer").map((p) => nrm(p.station.n));
       const carHint = r.legs.filter((l) => !l.isWalk).map((l) => carHints(l.stations[0].n, l.lineName)[0]).find(Boolean);
       const rt = routeTimes(r);
+      r._rt = rt; // 詳細画面でも同じ目安時刻を使う
       return `<article class="route-card" data-ridx="${idx}">
         <div class="route-head">
           <span class="route-label">${esc(r.label)}</span>${badges}
@@ -467,7 +468,7 @@
 
   // タブ: 全体(時刻つき縦タイムライン)
   function detailAll(r) {
-    const rt = routeTimes(r);
+    const rt = r._rt || routeTimes(r);
     const out = [`<p class="hint" style="margin:2px 0 8px;">時刻は「今すぐ出発した場合」の目安です(ベビーカー乗換時間込み)。実際の発車時刻は時刻リンクで確認してください。</p>`];
     let p = 0; // rt.pts index
     r.legs.forEach((leg, i) => {
