@@ -459,6 +459,43 @@ main { padding: 14px 12px 90px; max-width: 640px; margin: 0 auto; }
 .suggest .pref { color: #90a4ae; font-size: .72rem; }
 .suggest-head { font-size: .7rem; color: var(--sub); padding: 6px 12px 2px; font-weight: 700; }
 
+/* 駅階層図 */
+.sd-wrap { margin-bottom: 10px; }
+.sd-tabs { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.sd-tab {
+  border: 1.5px solid var(--line); background: #fff; color: #37474f;
+  font-size: .85rem; font-weight: 800; border-radius: 999px; padding: 7px 16px; cursor: pointer;
+}
+.sd-tab.on { background: var(--brand-dark); border-color: var(--brand-dark); color: #fff; }
+.sd-route-legend { font-size: .72rem; color: #1565c0; font-weight: 700; margin-left: auto; }
+.sd-svg { width: 100%; height: auto; display: block; }
+.sd-svg text { paint-order: stroke; stroke: #ffffff; stroke-width: 2.5px; stroke-linejoin: round; }
+.sd-bg { fill: #f3f6fa; stroke: #b0bec5; stroke-width: 1; }
+.sd-platform { fill: #dbe7f3; stroke: #78909c; stroke-width: 1; }
+.sd-platform.sd-hl { fill: #cfe3f7; stroke: #1565a5; stroke-width: 1.6; }
+.sd-zone { fill: #eef1f5; stroke: #b0bec5; stroke-width: .8; }
+.sd-zone.sd-hl { fill: #fdeef3; stroke: #e0447a; }
+.sd-corridor { fill: #fdf7e6; stroke: #d4b86a; stroke-width: .8; }
+.sd-area-label { font-size: 9.5px; font-weight: 700; fill: #37474f; }
+.sd-gate { fill: #fff; stroke: #c62828; stroke-width: 1.4; }
+.sd-gate-slit { stroke: #c62828; stroke-width: 1.2; }
+.sd-gate-label { font-size: 8.5px; font-weight: 800; fill: #b71c1c; }
+.sd-item { fill: #fff; stroke: #8d6e63; stroke-width: 1.1; }
+.sd-item-ev { stroke: #f9a825; stroke-width: 1.6; }
+.sd-item-icon { font-size: 10px; }
+.sd-item-label { font-size: 8px; fill: #5d4037; font-weight: 700; }
+.sd-route { fill: none; stroke: #1565c0; stroke-width: 3.2; stroke-dasharray: .5 7; stroke-linecap: round; stroke-linejoin: round; }
+.sd-arrowhead { fill: #1565c0; }
+.sd-pt-start { fill: #fff3e0; stroke: #fb8c00; stroke-width: 1.6; }
+.sd-pt-goal { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1.6; }
+.sd-pt-icon { font-size: 10px; }
+.sd-pt-ev { fill: #26a69a; }
+.sd-pt-no { font-size: 10px; font-weight: 800; fill: #fff; stroke: none; }
+.sd-route-note { font-size: 8.5px; font-weight: 800; fill: #0d47a1; }
+.sd-floor-tag { font-size: 11px; font-weight: 800; fill: #546e7a; }
+.sd-compass { font-size: 8.5px; fill: #90a4ae; }
+.sd-note { margin: 4px 2px; }
+
 /* 経路カードの時刻レンジ */
 .route-timerange { font-size: 1.35rem; font-weight: 800; margin: 2px 0; }
 .tr-arrow { color: #b0bec5; font-size: 1rem; }

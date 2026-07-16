@@ -94,7 +94,7 @@
 
   async function boot() {
     try {
-      const DATA_V = "16";
+      const DATA_V = "18";
       const [network, walks, fac, tr] = await Promise.all([
         fetchJsonRetry(`data/network.json?v=${DATA_V}`),
         fetchJsonRetry(`data/walk_transfers.json?v=${DATA_V}`),
@@ -737,6 +737,7 @@
   // ---------- ④駅構内マップ(既存資産) ----------
   let currentStation = null;
   let currentCtx = {};
+  let currentDiagram = null;
   let pendingStars = { tc: 0, ez: 0 };
 
   function openStationSheet(name, ctx = {}) {
@@ -813,6 +814,25 @@
       ? `<h3>🧭 乗換ナビ<span class="unverified">参考情報・要現地確認</span></h3>${guidesHtml}`
       : "";
 
+    // 駅階層図(mapDetailがある駅のみ / 新宿・東京など)
+    let diagramHtml = "";
+    if (f?.mapDetail && typeof StationDiagram !== "undefined") {
+      const md = f.mapDetail;
+      const ctxTokens = [...lineTokens(currentCtx.arrive), ...lineTokens(currentCtx.depart)];
+      let selRoute = md.routes?.find((r) =>
+        ctxTokens.some((t) => (r.from || "").includes(t)) && ctxTokens.some((t) => (r.to || "").includes(t)));
+      if (!selRoute) selRoute = md.routes?.find((r) =>
+        ctxTokens.some((t) => (r.from || "").includes(t) || (r.to || "").includes(t)));
+      currentDiagram = { md, route: selRoute || md.routes?.[0] || null };
+      const routeChips = (md.routes || []).map((r, i) =>
+        `<button type="button" class="mode-chip sd-route-chip${r === currentDiagram.route ? " on" : ""}" data-sdroute="${i}">${esc(r.label)}</button>`).join("");
+      diagramHtml = `<h3>🏢 駅階層図<span class="unverified">参考図・要現地確認</span></h3>
+        ${routeChips ? `<div class="mode-chips">${routeChips}</div>` : ""}
+        <div id="sd-container">${StationDiagram.render(md, currentDiagram.route) || ""}</div>`;
+    } else {
+      currentDiagram = null;
+    }
+
     const revHtml = revs.length
       ? revs.slice().reverse().map((r) => `<div class="review">
           ${r.tc ? `<div>🚻 きれいさ <span class="stars">${stars(r.tc)}</span></div>` : ""}
@@ -829,6 +849,7 @@
       <p class="hint">${esc(lines)}</p>
       ${reliabilityHtml(name)}
       ${facHtml}
+      ${diagramHtml}
       ${navHtml}
       <div class="station-links">
         <a href="https://www.google.com/search?q=${encodeURIComponent(name + "駅 構内図 エレベーター")}" target="_blank" rel="noopener">🗺 公式構内図を検索</a>
@@ -856,6 +877,30 @@
         box.querySelectorAll("button").forEach((x) => x.classList.toggle("on", Number(x.dataset.v) <= v));
       });
     });
+    // 駅階層図: フロアタブ・経路切替
+    const sdc = $("sd-container");
+    if (sdc && currentDiagram) {
+      const bindSd = () => {
+        sdc.querySelectorAll(".sd-tab").forEach((b) => {
+          b.addEventListener("click", () => {
+            const fi = Number(b.dataset.floor);
+            const r = StationDiagram.prepRoute(currentDiagram.md, currentDiagram.route);
+            sdc.querySelector(".sd-canvas").innerHTML = StationDiagram.floorSvg(currentDiagram.md, fi, r);
+            sdc.querySelectorAll(".sd-tab").forEach((x) => x.classList.toggle("on", x === b));
+          });
+        });
+      };
+      bindSd();
+      $("station-sheet-body").querySelectorAll(".sd-route-chip").forEach((b) => {
+        b.addEventListener("click", () => {
+          currentDiagram.route = currentDiagram.md.routes[Number(b.dataset.sdroute)];
+          $("station-sheet-body").querySelectorAll(".sd-route-chip").forEach((x) => x.classList.toggle("on", x === b));
+          sdc.innerHTML = StationDiagram.render(currentDiagram.md, currentDiagram.route) || "";
+          bindSd();
+        });
+      });
+    }
+
     $("btn-add-review").addEventListener("click", addReview);
     $("btn-close-station").addEventListener("click", closeSheets);
     $("btn-fav-station").addEventListener("click", () => {
